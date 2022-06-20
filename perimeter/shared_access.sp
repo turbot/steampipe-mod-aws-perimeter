@@ -22,7 +22,7 @@ benchmark "shared_access" {
   documentation = file("./perimeter/docs/shared_access.md")
   children = [
     benchmark.ram_shared_access,
-    benchmark.resource_config_shared_access
+    benchmark.shared_access_settings
   ]
 
   tags = merge(local.aws_perimeter_common_tags, {
@@ -245,10 +245,10 @@ control "ram_resource_shared_with_trusted_organization_units" {
   })
 }
 
-benchmark "resource_config_shared_access" {
-  title         = "Resource Config Shared Access"
+benchmark "shared_access_settings" {
+  title         = "Shared Access Settings"
   description   = "The AWS resource config shared access is a set of controls that detect if your deployed cloud resources are shared for use by principals outside of the AWS account that created the resource. This can be configured by modifying any parameter using sharing API."
-  documentation = file("./perimeter/docs/resource_config_shared_access.md")
+  documentation = file("./perimeter/docs/shared_access_settings.md")
   children = [
     control.config_aggregator_shared_with_trusted_accounts,
     control.directory_service_directory_shared_with_trusted_accounts,
