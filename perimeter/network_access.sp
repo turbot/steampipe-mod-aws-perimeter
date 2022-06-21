@@ -27,7 +27,6 @@ benchmark "network_general_access" {
     control.sagemaker_notebook_instance_in_vpc,
     control.sagemaker_training_job_in_vpc,
     control.vpc_peering_connection_cross_account_shared,
-    control.vpc_route_table_restrict_public_access_to_igw
   ]
 
   tags = merge(local.aws_perimeter_common_tags, {
@@ -290,49 +289,6 @@ control "vpc_peering_connection_cross_account_shared" {
     description = "Trusted Accounts"
     default     = var.trusted_accounts
   }
-
-  tags = merge(local.aws_perimeter_common_tags, {
-    service = "AWS/VPC"
-  })
-}
-
-control "vpc_route_table_restrict_public_access_to_igw" {
-  title       = "Public routes in the route table to an Internet Gateway (IGW) should be prohibited"
-  description = "Ensure if there are public routes in the route table to an Internet Gateway (IGW). The rule is non compliant if a route to an IGW has a destination CIDR block of '0.0.0.0/0' or '::/0'."
-
-  sql = <<-EOT
-    with route_with_public_access as (
-      select
-        route_table_id,
-        count(*) as num
-      from
-        aws_vpc_route_table,
-        jsonb_array_elements(routes) as r
-      where
-        ( r ->> 'DestinationCidrBlock' = '0.0.0.0/0'
-          or r ->> 'DestinationCidrBlock' = '::/0'
-        )
-        and r ->> 'GatewayId' like 'igw%'
-      group by
-        route_table_id
-    )
-    select
-      a.route_table_id as resource,
-      case
-        when b.route_table_id is null then 'ok'
-        else 'alarm'
-      end as status,
-      case
-        when b.route_table_id is null then a.title || ' does not have public routes to an Internet Gateway (IGW).'
-        else a.title || ' contains ' || b.num || ' rule(s) which have public routes to an Internet Gateway (IGW).'
-      end as reason,
-      a.region,
-      a.account_id
-    from
-      aws_vpc_route_table as a
-      left join route_with_public_access as b on b.route_table_id = a.route_table_id;
-
-  EOT
 
   tags = merge(local.aws_perimeter_common_tags, {
     service = "AWS/VPC"
