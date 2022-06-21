@@ -4,7 +4,7 @@ benchmark "network_access" {
   documentation = file("./perimeter/docs/network_access.md")
   children = [
     benchmark.network_general_access,
-    benchmark.network_security_group_access,
+    benchmark.security_group_access,
     benchmark.public_ips
   ]
 
@@ -339,10 +339,10 @@ control "vpc_route_table_restrict_public_access_to_igw" {
   })
 }
 
-benchmark "network_security_group_access" {
+benchmark "security_group_access" {
   title         = "Network Security Group Access"
   description   = "AWS Network Security Groups (SGs) restrict access to certain IP addresses or resources. It guards your AWS security perimeter, provided you configure them in the right way."
-  documentation = file("./perimeter/docs/network_security_group_access.md")
+  documentation = file("./perimeter/docs/security_group_access.md")
   children = [
     control.vpc_security_group_restrict_ingress_common_ports_all,
     control.vpc_security_group_restrict_ingress_tcp_udp_all
