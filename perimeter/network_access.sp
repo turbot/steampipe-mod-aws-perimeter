@@ -296,8 +296,8 @@ control "vpc_peering_connection_cross_account_shared" {
 }
 
 benchmark "security_group_access" {
-  title         = "Network Security Group Access"
-  description   = "AWS Network Security Groups (SGs) restrict access to certain IP addresses or resources. It guards your AWS security perimeter, provided you configure them in the right way."
+  title         = "Security Group Access"
+  description   = "AWS VPC Security Groups (SGs) restrict access to certain IP addresses or resources. It guards your AWS security perimeter, provided you configure them in the right way."
   documentation = file("./perimeter/docs/security_group_access.md")
   children = [
     control.vpc_security_group_restrict_ingress_common_ports_all,
