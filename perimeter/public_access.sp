@@ -1,6 +1,6 @@
 benchmark "public_access" {
   title         = "Public Access"
-  description   = "Publicly accessible services could expose sensitive data to bad actors. The AWS Public Access is a set of controls that identifies resources that may be publicly accessible."
+  description   = "Resources should not be publicly accessible as they could expose sensitive data to bad actors."
   documentation = file("./perimeter/docs/public_access.md")
   children = [
     benchmark.public_access_settings,
@@ -14,13 +14,14 @@ benchmark "public_access" {
 
 benchmark "public_access_settings" {
   title         = "Public Access Settings"
-  description   = "The resource config public access is a set of controls that identifies if your deployed resources exposed to internet by any means of configurational changes in the resources."
+  description   = "Resources should not be publicly accessible or exposed to the internet through configurations and settings."
   documentation = file("./perimeter/docs/public_access_settings.md")
   children = [
     control.dms_replication_instance_not_publicly_accessible,
     control.ebs_snapshot_not_publicly_accessible,
     control.ec2_instance_ami_prohibit_public_access,
     control.eks_cluster_endpoint_prohibit_public_access,
+    control.rds_db_cluster_snapshot_prohibit_public_access,
     control.rds_db_instance_prohibit_public_access,
     control.rds_db_snapshot_prohibit_public_access,
     control.redshift_cluster_prohibit_public_access,
@@ -38,7 +39,7 @@ benchmark "public_access_settings" {
 
 control "dms_replication_instance_not_publicly_accessible" {
   title       = "Database Migration Service (DMS) replication instances should not be public"
-  description = "This control checks whether AWS DMS replication instances are public. To do this, it examines the value of the PubliclyAccessible field. A private replication instance has a private IP address that you cannot access outside of the replication network. A replication instance should have a private IP address when the source and target databases are in the same network, and the network is connected to the replication instance's VPC using a VPN, AWS Direct Connect, or VPC peering."
+  description = "This control checks whether AWS DMS replication instances are public. A private replication instance has a private IP address that you cannot access outside of the replication network. A replication instance should have a private IP address when the source and target databases are in the same network, and the network is connected to the replication instance's VPC using a VPN, AWS Direct Connect, or VPC peering."
 
   sql = <<-EOT
     select
@@ -64,7 +65,7 @@ control "dms_replication_instance_not_publicly_accessible" {
 
 control "ebs_snapshot_not_publicly_accessible" {
   title       = "EBS snapshots should not be publicly restorable"
-  description = "This control checks whether Amazon Elastic Block Store snapshots are not publicly restorable by everyone, which makes them public. Amazon EBS snapshots should not be publicly restorable by everyone unless you explicitly allow it, to avoid accidental exposure of your company’s sensitive data."
+  description = "This control checks whether Amazon EBS snapshots are publicly restorable by everyone, which makes them public. Amazon EBS snapshots should not be publicly restorable by everyone unless you explicitly allow it, to avoid accidental exposure of your company’s sensitive data."
 
   sql = <<-EOT
     select
@@ -89,7 +90,7 @@ control "ebs_snapshot_not_publicly_accessible" {
 }
 
 control "ec2_instance_ami_prohibit_public_access" {
-  title       = "EC2 AMIs should prohibit public access"
+  title       = "EC2 AMIs should not be shared publicly"
   description = "A shared AMI is an AMI that a developer created and made available for other developers to use within organisation or carefully shared to other accounts. If AMIs have embedded information about the environment, it could pose a security risk if shared publicly."
 
   sql = <<-EOT
@@ -117,7 +118,7 @@ control "ec2_instance_ami_prohibit_public_access" {
 
 control "eks_cluster_endpoint_prohibit_public_access" {
   title       = "EKS cluster endpoints should prohibit public access"
-  description = "Ensure that Amazon Elastic Kubernetes Service (Amazon EKS) endpoints are not publicly accessible. The rule is noncompliant if the endpoints are publicly accessible."
+  description = "Ensure that Amazon Elastic Kubernetes Service (Amazon EKS) endpoints are not publicly accessible."
 
   sql = <<-EOT
     select
@@ -166,13 +167,11 @@ control "rds_db_instance_prohibit_public_access" {
     service = "AWS/RDS"
   })
 }
-
-control "rds_db_snapshot_prohibit_public_access" {
-  title       = "RDS DB snapshots should not be publicly restorable"
-  description = "This control checks whether Amazon RDS DB snapshots prohibit access to other accounts. It is recommended that your RDS snapshots should not be public in order to prevent potential leak or misuse of sensitive data or any other kind of security threat. If your RDS snapshot is public; then the data which is backed up in that snapshot is accessible to all other AWS accounts."
+control "rds_db_cluster_snapshot_prohibit_public_access" {
+  title       = "RDS DB cluster snapshots should not be publicly restorable"
+  description = "This control checks whether Amazon RDS DB cluster snapshots prohibit access to other accounts. It is recommended that your RDS cluster snapshots should not be public in order to prevent potential leak or misuse of sensitive data or any other kind of security threat. If your RDS cluster snapshot is public; then the data which is backed up in that snapshot is accessible to all other AWS accounts."
 
   sql = <<-EOT
-    (
     select
       arn as resource,
       case
@@ -187,10 +186,19 @@ control "rds_db_snapshot_prohibit_public_access" {
       account_id
     from
       aws_rds_db_cluster_snapshot,
-      jsonb_array_elements(db_cluster_snapshot_attributes) as cluster_snapshot
-    )
-    union
-    (
+      jsonb_array_elements(db_cluster_snapshot_attributes) as cluster_snapshot;
+  EOT
+
+  tags = merge(local.aws_perimeter_common_tags, {
+    service = "AWS/RDS"
+  })
+}
+
+control "rds_db_snapshot_prohibit_public_access" {
+  title       = "RDS DB snapshots should not be publicly restorable"
+  description = "This control checks whether Amazon RDS DB snapshots prohibit access to other accounts. It is recommended that your RDS snapshots should not be public in order to prevent potential leak or misuse of sensitive data or any other kind of security threat. If your RDS snapshot is public; then the data which is backed up in that snapshot is accessible to all other AWS accounts."
+
+  sql = <<-EOT
     select
       arn as resource,
       case
@@ -205,9 +213,7 @@ control "rds_db_snapshot_prohibit_public_access" {
       account_id
     from
       aws_rds_db_snapshot,
-      jsonb_array_elements(db_snapshot_attributes) as database_snapshot
-    );
-
+      jsonb_array_elements(db_snapshot_attributes) as database_snapshot;
   EOT
 
   tags = merge(local.aws_perimeter_common_tags, {
@@ -217,7 +223,7 @@ control "rds_db_snapshot_prohibit_public_access" {
 
 control "redshift_cluster_prohibit_public_access" {
   title       = "Redshift clusters should prohibit public access"
-  description = "This control checks whether Amazon Redshift clusters prohibit access to other accounts. It is recommended that your Redshift clusters should not be public in order to prevent potential leak or misuse of sensitive data or any other kind of security threat."
+  description = "This control checks whether Amazon Redshift clusters are publicly accessible. It is recommended that your Redshift clusters should not be public in order to prevent potential leak or misuse of sensitive data or any other kind of security threat."
 
   sql = <<-EOT
     select
@@ -269,7 +275,7 @@ control "sagemaker_notebook_instance_direct_internet_access_disabled" {
 
 control "s3_public_access_block_account" {
   title       = "S3 account settings should block public access"
-  description = "Manage access to resources in the AWS Cloud by ensuring that Amazon Simple Storage Service (Amazon S3) buckets cannot be publicly accessed."
+  description = "Ensure Amazon Simple Storage Service (Amazon S3) buckets block public policy and ACL access at the account level."
 
   sql = <<-EOT
     select
@@ -308,7 +314,7 @@ control "s3_public_access_block_account" {
 
 control "s3_public_access_block_bucket" {
   title       = "S3 buckets should block public access at bucket level"
-  description = "Ensure Amazon Simple Storage Service (Amazon S3) buckets are not publicly accessible. This rule is noncompliant if an Amazon S3 bucket is not listed in the excludedPublicBuckets parameter and bucket level settings are public."
+  description = "Ensure Amazon Simple Storage Service (Amazon S3) buckets block public policy and ACL access at the bucket level."
 
   sql = <<-EOT
     select
@@ -349,7 +355,7 @@ control "s3_public_access_block_bucket" {
 
 control "s3_bucket_acl_prohibit_public_read_access" {
   title       = "S3 bucket ACLs should prohibit public read access"
-  description = "Manage access to resources in the AWS Cloud by only allowing authorized users, processes, and devices access to Amazon Simple Storage Service (Amazon S3) buckets."
+  description = "This control checks if S3 bucket ACLs allow public read access to objects in the bucket."
 
   sql = <<-EOT
     with data as (
@@ -389,7 +395,7 @@ control "s3_bucket_acl_prohibit_public_read_access" {
 
 control "s3_bucket_acl_prohibit_public_write_access" {
   title       = "S3 bucket ACLs should prohibit public write access"
-  description = "Manage access to resources in the AWS Cloud by only allowing authorized users, processes, and devices access to Amazon Simple Storage Service (Amazon S3) buckets."
+  description = "This control checks if S3 bucket ACLs allow public write access to objects in the bucket."
 
   sql = <<-EOT
     with data as (
@@ -429,7 +435,7 @@ control "s3_bucket_acl_prohibit_public_write_access" {
 
 benchmark "resource_policy_public_access" {
   title         = "Resource Policy Public Access"
-  description   = "The resource policy public access is a set of controls that identifies if your deployed resources exposed to internet by any means of configurational changes in the resources policy."
+  description   = "Resources should not be publicly accessible through statements in their resource policies."
   documentation = file("./perimeter/docs/resource_policy_public_access.md")
   children = [
     control.ecr_repository_policy_prohibit_public_access,
@@ -449,7 +455,7 @@ benchmark "resource_policy_public_access" {
 
 control "ecr_repository_policy_prohibit_public_access" {
   title       = "ECR repository policies should prohibit public access"
-  description = "Ensure there are no ECR repositories set as public."
+  description = "Check if ECR repository policies allow public access."
 
   sql = <<-EOT
     with open_access_ecr_repo as(
@@ -491,7 +497,7 @@ control "ecr_repository_policy_prohibit_public_access" {
 
 control "lambda_function_policy_prohibit_public_access" {
   title       = "Lambda function policies should prohibit public access"
-  description = "Manage access to resources in the AWS Cloud by ensuring AWS Lambda functions cannot be publicly accessed."
+  description = "Check if Lambda function policies allow public access."
 
   sql = <<-EOT
     select
@@ -526,7 +532,7 @@ control "lambda_function_policy_prohibit_public_access" {
 
 control "s3_bucket_policy_prohibit_public_access" {
   title       = "S3 bucket policies should prohibit public access"
-  description = "Manage access to resources in the AWS Cloud by ensuring AWS S3 buckets cannot be publicly accessed."
+  description = "Check if S3 bucket policies allow public access."
 
   sql = <<-EOT
     with wildcard_action_policies as (
@@ -567,7 +573,7 @@ control "s3_bucket_policy_prohibit_public_access" {
 
 control "sns_topic_policy_prohibit_public_access" {
   title       = "SNS topic policies should prohibit public access"
-  description = "Manage access to resources in the AWS Cloud by ensuring AWS SNS topics cannot be publicly accessed."
+  description = "Check if SNS topic policies allow public access."
 
   sql = <<-EOT
     with wildcard_action_policies as (
@@ -611,7 +617,7 @@ control "sns_topic_policy_prohibit_public_access" {
 
 control "sqs_queue_policy_prohibit_public_access" {
   title       = "SQS queue policies should prohibit public access"
-  description = "Manage access to resources in the AWS Cloud by ensuring AWS SQS queues cannot be publicly accessed."
+  description = "Check if SQS queue policies allow public access."
 
   sql = <<-EOT
     with wildcard_action_policies as (
@@ -655,7 +661,7 @@ control "sqs_queue_policy_prohibit_public_access" {
 
 control "glacier_vault_policy_prohibit_public_access" {
   title       = "Glacier vault policies should prohibit public access"
-  description = "Manage access to resources in the AWS Cloud by ensuring AWS Glacier vaults cannot be publicly accessed."
+  description = "Check if Glacier vault policies allow public access."
 
   sql = <<-EOT
     with wildcard_action_policies as (
@@ -699,7 +705,7 @@ control "glacier_vault_policy_prohibit_public_access" {
 
 control "iam_role_trust_policy_prohibit_public_access" {
   title       = "IAM role trust policies should prohibit public access"
-  description = "Role trust policies can provide access to roles in external AWS accounts."
+  description = "Check if IAM role trust policies provide public access, allowing any principal to assume the role."
 
   sql = <<-EOT
     with assume_role as (
@@ -739,7 +745,7 @@ control "iam_role_trust_policy_prohibit_public_access" {
 
 control "kms_key_policy_prohibit_public_access" {
   title       = "KMS key policies should prohibit public access"
-  description = "Manage access to resources in the AWS Cloud by ensuring AWS KMS keys cannot be publicly accessed."
+  description = "Check if KMS key policies allow public access."
 
   sql = <<-EOT
     with wildcard_action_policies as (
@@ -783,4 +789,3 @@ control "kms_key_policy_prohibit_public_access" {
     service = "AWS/KMS"
   })
 }
-

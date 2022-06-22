@@ -1,6 +1,6 @@
 benchmark "network_access" {
   title         = "Network Access"
-  description   = "The AWS network access is a set of controls that detect if your deployed resources are exposed to internet through any VPC's network settings such as security group ingress, public subnet."
+  description   = "Resources should not be exposed to the internet through VPC settings, security group rules, or public IP addresses."
   documentation = file("./perimeter/docs/network_access.md")
   children = [
     benchmark.network_general_access,
@@ -15,7 +15,7 @@ benchmark "network_access" {
 
 benchmark "network_general_access" {
   title         = "Network General Access"
-  description   = "The AWS network general access is a set of controls that detect if  your deployed resources do not follow recommended general best practices to safeguard from exposure to public access."
+  description   = "Resources should follow general best practices to safeguard from exposure to public access."
   documentation = file("./perimeter/docs/network_general_access.md")
   children = [
     control.ec2_instance_in_vpc,
@@ -36,7 +36,7 @@ benchmark "network_general_access" {
 
 control "ec2_instance_in_vpc" {
   title       = "EC2 instances should be in a VPC"
-  description = "Deploy Amazon Elastic Compute Cloud (Amazon EC2) instances within an Amazon Virtual Private Cloud (Amazon VPC) to enable secure communication between an instance and other services within the amazon VPC, without requiring an internet gateway, NAT device, or VPN connection."
+  description = "Deploy EC2 instances within a VPC to enable secure communication between an instance and other services within the VPC, without requiring an internet gateway, NAT device, or VPN connection."
 
   sql = <<-EOT
     select
@@ -62,7 +62,7 @@ control "ec2_instance_in_vpc" {
 
 control "elb_application_lb_waf_enabled" {
   title       = "ELB application load balancers should have Web Application Firewall (WAF) enabled"
-  description = "Ensure AWS WAF is enabled on Elastic Load Balancers (ELB) to help protect web applications."
+  description = "Ensure AWS WAF is enabled on application load balancers to help protect web applications."
 
   sql = <<-EOT
     select
@@ -88,7 +88,7 @@ control "elb_application_lb_waf_enabled" {
 
 control "es_domain_in_vpc" {
   title       = "Elasticsearch Service domains should be in a VPC"
-  description = "This control checks whether Amazon Elasticsearch Service domains are in a VPC. It does not evaluate the VPC subnet routing configuration to determine public access. You should ensure that Amazon ES domains are not attached to public subnets."
+  description = "This control checks whether Elasticsearch domains are in a VPC. It does not evaluate the VPC subnet routing configuration to determine public access. You should ensure that Amazon ES domains are not attached to public subnets."
 
   sql = <<-EOT
     select
@@ -113,8 +113,8 @@ control "es_domain_in_vpc" {
 }
 
 control "opensearch_domain_in_vpc" {
-  title       = "Amazon OpenSearch domains should be in a VPC without public subnet"
-  description = "This control checks whether Amazon OpenSearch domains are in a VPC with no public subnet associated to it."
+  title       = "Amazon OpenSearch domains should be in a VPC private subnet"
+  description = "This control checks whether Amazon OpenSearch domains are in a VPC with no public subnets associated to it."
 
   sql = <<-EOT
     with public_subnets as (
@@ -162,7 +162,7 @@ control "opensearch_domain_in_vpc" {
 
 control "rds_db_instance_in_vpc" {
   title       = "RDS DB instances should be deployed in a VPC"
-  description = "This control checks whether RDS DB instances are deployed in a VPC (EC2-VPC)."
+  description = "This control checks whether RDS DB instances are deployed in a VPC."
 
   sql = <<-EOT
     select
@@ -188,7 +188,7 @@ control "rds_db_instance_in_vpc" {
 
 control "sagemaker_model_in_vpc" {
   title       = "SageMaker models should be in a VPC"
-  description = "This control checks whether SageMaker models are deployed in a VPC (EC2-VPC)."
+  description = "This control checks whether SageMaker models are deployed in a VPC."
 
   sql = <<-EOT
     select
@@ -214,7 +214,7 @@ control "sagemaker_model_in_vpc" {
 
 control "sagemaker_notebook_instance_in_vpc" {
   title       = "SageMaker notebook instances should be in a VPC"
-  description = "This control checks whether SageMaker Notebook instances are deployed in a VPC (EC2-VPC)."
+  description = "This control checks whether SageMaker Notebook instances are deployed in a VPC."
 
   sql = <<-EOT
     select
@@ -240,7 +240,7 @@ control "sagemaker_notebook_instance_in_vpc" {
 
 control "sagemaker_training_job_in_vpc" {
   title       = "SageMaker training jobs should be in a VPC"
-  description = "This control checks whether SageMaker training jobs are deployed in a VPC (EC2-VPC)."
+  description = "This control checks whether SageMaker training jobs are deployed in a VPC."
 
   sql = <<-EOT
     select
@@ -265,8 +265,8 @@ control "sagemaker_training_job_in_vpc" {
 }
 
 control "vpc_peering_connection_cross_account_shared" {
-  title       = "VPC peering should only be restricted to trusted accounts"
-  description = "This control checks whether VPC peering connections are only restricted to trusted accounts."
+  title       = "VPCs should only be peered with trusted accounts"
+  description = "This control checks if VPCs are only peered with trusted accounts."
 
   sql = <<-EOT
     select
@@ -276,8 +276,8 @@ control "vpc_peering_connection_cross_account_shared" {
         else 'info'
       end status,
       case
-        when accepter_owner_id = requester_owner_id or accepter_owner_id = any (($1)::text[]) then title || ' cross-account sharing disabled with any untrusted accounts.'
-        else title || ' cross-account sharing with ' || accepter_owner_id || '.'
+        when accepter_owner_id = requester_owner_id or accepter_owner_id = any (($1)::text[]) then title || ' is peered with a trust account.'
+        else title || ' is peered with untrusted account ' || accepter_owner_id || '.'
       end reason,
       region,
       account_id
@@ -286,7 +286,7 @@ control "vpc_peering_connection_cross_account_shared" {
   EOT
 
   param "trusted_accounts" {
-    description = "Trusted Accounts"
+    description = "A list of trusted accounts."
     default     = var.trusted_accounts
   }
 
@@ -297,7 +297,7 @@ control "vpc_peering_connection_cross_account_shared" {
 
 benchmark "security_group_access" {
   title         = "Security Group Access"
-  description   = "AWS VPC Security Groups (SGs) restrict access to certain IP addresses or resources. It guards your AWS security perimeter, provided you configure them in the right way."
+  description   = "Security groups should restrict ingress and egress access to certain IP addresses and resources to prevent unwanted access."
   documentation = file("./perimeter/docs/security_group_access.md")
   children = [
     control.vpc_security_group_restrict_ingress_common_ports_all,
@@ -311,7 +311,7 @@ benchmark "security_group_access" {
 
 control "vpc_security_group_restrict_ingress_tcp_udp_all" {
   title       = "VPC security groups should restrict ingress TCP and UDP access from 0.0.0.0/0"
-  description = "This control checks whether any security groups with inbound 0.0.0.0/0 have TCP or UDP ports accessible. The rule is noncompliant when a security group with inbound 0.0.0.0/0 have a TCP or UDP ports accessible."
+  description = "This control checks if any security groups allow inbound 0.0.0.0/0 to TCP or UDP ports."
 
   sql = <<-EOT
     with bad_rules as (
@@ -357,7 +357,7 @@ control "vpc_security_group_restrict_ingress_tcp_udp_all" {
 
 control "vpc_security_group_restrict_ingress_common_ports_all" {
   title       = "VPC security groups should restrict ingress access on ports 20, 21, 22, 3306, 3389, 4333 from 0.0.0.0/0"
-  description = "Manage access to resources in the AWS Cloud by ensuring common ports are restricted on Amazon Elastic Compute Cloud (Amazon EC2) security groups."
+  description = "This control checks if any security groups allow inbound 0.0.0.0/0 or ::/0 to ports 20, 21, 22, 3306, 3389, 4333."
 
   sql = <<-EOT
     with ingress_ssh_rules as (
@@ -463,8 +463,8 @@ control "vpc_security_group_restrict_ingress_common_ports_all" {
         else 'alarm'
       end as status,
       case
-        when ingress_ssh_rules.group_id is null then sg.group_id || ' ingress restricted for common ports from 0.0.0.0/0.'
-        else sg.group_id || ' contains ' || ingress_ssh_rules.num_ssh_rules || ' ingress rule(s) allowing access for common ports from 0.0.0.0/0.'
+        when ingress_ssh_rules.group_id is null then sg.group_id || ' ingress restricted for common ports from 0.0.0.0/0 and ::/0.'
+        else sg.group_id || ' contains ' || ingress_ssh_rules.num_ssh_rules || ' ingress rule(s) allowing access for common ports from 0.0.0.0/0 and ::/0.'
       end as reason,
       sg.region,
       sg.account_id
@@ -480,7 +480,7 @@ control "vpc_security_group_restrict_ingress_common_ports_all" {
 
 benchmark "public_ips" {
   title         = "Public IPs"
-  description   = "The public IPs benchmark includes a set of controls that detect if your deployed resources have associated public IPs, which can expose the resources to direct access from internet."
+  description   = "Resources should not have public IP addresses, as these can expose them to the internet."
   documentation = file("./perimeter/docs/public_ips.md")
   children = [
     control.autoscaling_launch_config_public_ip_disabled,
@@ -497,8 +497,8 @@ benchmark "public_ips" {
 }
 
 control "autoscaling_launch_config_public_ip_disabled" {
-  title       = "Auto Scaling launch configs should not have a public IP address"
-  description = "Ensure that Amazon EC2 Auto Scaling groups have public IP addresses enabled through Launch Configurations. This rule is noncompliant if the Launch Configuration for an Auto Scaling group has AssociatePublicIpAddress set to 'true'."
+  title       = "Auto Scaling launch configs should not associate public IP addresses to instances"
+  description = "Ensure that EC2 Auto Scaling launch configurations do not associate public IP addresses to Auto Scaling group instances."
 
   sql = <<-EOT
     select
@@ -508,8 +508,8 @@ control "autoscaling_launch_config_public_ip_disabled" {
         else 'ok'
       end as status,
       case
-        when associate_public_ip_address then title || ' public IP enabled.'
-        else title || ' public IP disabled.'
+        when associate_public_ip_address then title || ' associate public IP addresses.'
+        else title || ' do not associate public IP addresses.'
       end as reason,
       region,
       account_id
@@ -524,7 +524,7 @@ control "autoscaling_launch_config_public_ip_disabled" {
 
 control "ec2_instance_not_publicly_accessible" {
   title       = "EC2 instances should not have a public IP address"
-  description = "This control checks whether EC2 instances have a public IP address. The control fails if the publicIp field is present in the EC2 instance configuration item. This control applies to IPv4 addresses only."
+  description = "This control checks whether EC2 instances have a public IPv4 address."
 
   sql = <<-EOT
     select
@@ -550,7 +550,7 @@ control "ec2_instance_not_publicly_accessible" {
 
 control "ec2_network_interface_not_publicly_accessible" {
   title       = "EC2 network interfaces should not have a public IP address"
-  description = "This control check if Amazon EC2 network interface is associated with any public IP."
+  description = "This control checks if EC2 network interfaces are associated with any public IP."
 
   sql = <<-EOT
     select
@@ -576,7 +576,7 @@ control "ec2_network_interface_not_publicly_accessible" {
 
 control "ecs_service_not_publicly_accessible" {
   title       = "Amazon ECS services should not have public IP addresses assigned to them automatically"
-  description = "This control checks whether Amazon ECS services are configured to automatically assign public IP addresses. This control fails if AssignPublicIP is enabled. This control passes if AssignPublicIP is disabled."
+  description = "This control checks whether Amazon ECS services are configured to automatically assign public IP addresses."
 
   sql = <<-EOT
     with service_awsvpc_mode_task_definition as (
@@ -615,7 +615,7 @@ control "ecs_service_not_publicly_accessible" {
 
 control "emr_cluster_master_nodes_no_public_ip" {
   title       = "EMR cluster master nodes should not have a public IP address"
-  description = "This control checks whether master nodes on Amazon EMR clusters have public IP addresses. The control fails if the master node has public IP addresses that are associated with any of its instances. Public IP addresses are designated in the PublicIp field of the NetworkInterfaces configuration for the instance. This control only checks Amazon EMR clusters that are in RUNNING or WAITING state."
+  description = "This control checks whether master nodes on Amazon EMR clusters have public IP addresses. This control only checks Amazon EMR clusters that are in RUNNING or WAITING state."
 
   sql = <<-EOT
     select

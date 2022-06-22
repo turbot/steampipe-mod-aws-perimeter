@@ -1,24 +1,24 @@
 variable "trusted_accounts" {
   type        = list(string)
   default     = ["123456781234", "123456781200"]
-  description = "A list of AWS accounts trusted for sharing resources."
+  description = "A list of trusted AWS accounts resources can be shared with."
 }
 
 variable "trusted_organizations" {
   type        = list(string)
   default     = ["o-abcdhqk8mns", "o-efghqk8pab"]
-  description = "A list of AWS organizations trusted for sharing resources."
+  description = "A list of trusted AWS organizations resources can be shared with."
 }
 
 variable "trusted_organization_units" {
   type        = list(string)
-  default     = ["ou-abcdek7fks"]
-  description = "A list of AWS organizations units trusted for sharing resources."
+  default     = ["ou-abcdek7fks", "ou-123def789"]
+  description = "A list of trusted AWS organizations units (OUs) resources can be shared with."
 }
 
 benchmark "shared_access" {
   title         = "Shared Access"
-  description   = "The AWS Shared Access is a set of controls that detect if your deployed accounts and resources are shared for use by principals outside of the AWS account that created the resource. Sharing doesn't change any permissions or quotas that apply to the resource in the account that created it. Shared resources can be achived by AWS Resource Access Manager (RAM) or through sharing APIs or through resource-based policies."
+  description   = "Resources should only be shared with trusted entities through AWS Resource Access Manager (RAM), configurations, or resource policies."
   documentation = file("./perimeter/docs/shared_access.md")
   children = [
     benchmark.ram_shared_access,
@@ -32,7 +32,7 @@ benchmark "shared_access" {
 
 benchmark "ram_shared_access" {
   title         = "RAM Shared Access"
-  description   = "AWS Resource Access Manager (RAM) helps you securely share the AWS resources that you create in one AWS account with other AWS accounts. If you have multiple AWS accounts, you can create a resource once and use AWS RAM to make that resource usable by those other accounts."
+  description   = "AWS Resource Access Manager (RAM) helps you securely share the AWS resources that you create in one AWS account with other AWS accounts. Resources shared through RAM should only be shared with trusted accounts."
   documentation = file("./perimeter/docs/ram_shared_access.md")
   children = [
     control.ram_resource_shared_with_trusted_accounts,
@@ -47,7 +47,7 @@ benchmark "ram_shared_access" {
 
 control "ram_resource_shared_with_trusted_accounts" {
   title       = "Resources shared through RAM should only be shared with trusted accounts"
-  description = "AWS Resource Access Manager (RAM) helps you securely share your resources across AWS accounts, within your organization or organizational units (OUs) in AWS Organizations, and with IAM roles and IAM users for supported resource types. Check if you share resources with an account that is part of the trusted list of accounts or your organization. AWS RAM initiates an invitation process, the recipient must accept the invitation before that principal can access the shared resources. Sharing within an organization doesn't require an invitation."
+  description = "AWS Resource Access Manager (RAM) helps you securely share your resources across AWS accounts, organizational units (OUs), and organizations for supported resource types. Check if you share resources with an account that is not part of the trusted list of accounts."
 
   sql = <<-EOT
     with ram_shared_resources as (
@@ -102,7 +102,7 @@ control "ram_resource_shared_with_trusted_accounts" {
   EOT
 
   param "trusted_accounts" {
-    description = "Trusted Accounts"
+    description = "A list of trusted accounts."
     default     = var.trusted_accounts
   }
 
@@ -113,7 +113,7 @@ control "ram_resource_shared_with_trusted_accounts" {
 
 control "ram_resource_shared_with_trusted_organizations" {
   title       = "Resources shared through RAM should only be shared with trusted organizations"
-  description = "AWS Resource Access Manager (RAM) helps you securely share your resources across AWS accounts, within your organization or organizational units (OUs) in AWS Organizations, and with IAM roles and IAM users for supported resource types. Check if you share resources with an account that is part of the trusted list of accounts or your organization. AWS RAM initiates an invitation process, the recipient must accept the invitation before that principal can access the shared resources. Sharing within an organization doesn't require an invitation."
+  description = "AWS Resource Access Manager (RAM) helps you securely share your resources across AWS accounts, organizational units (OUs), and organizations for supported resource types. Check if you share resources with an account that is not part of the trusted list of organizations."
 
   sql = <<-EOT
     with ram_shared_resources as (
@@ -169,7 +169,7 @@ control "ram_resource_shared_with_trusted_organizations" {
   EOT
 
   param "trusted_organizations" {
-    description = "Trusted Organizations"
+    description = "A list of trusted organizations."
     default     = var.trusted_organizations
   }
 
@@ -180,7 +180,7 @@ control "ram_resource_shared_with_trusted_organizations" {
 
 control "ram_resource_shared_with_trusted_organization_units" {
   title       = "Resources shared through RAM should only be shared with trusted OUs"
-  description = "AWS Resource Access Manager (RAM) helps you securely share your resources across AWS accounts, within your organization or organizational units (OUs) in AWS Organizations, and with IAM roles and IAM users for supported resource types. Check if you share resources with an account that is part of the trusted list of accounts or your organization. AWS RAM initiates an invitation process, the recipient must accept the invitation before that principal can access the shared resources. Sharing within an organization doesn't require an invitation."
+  description = "AWS Resource Access Manager (RAM) helps you securely share your resources across AWS accounts, organizational units (OUs), and organizations for supported resource types. Check if you share resources with an account that is not part of the trusted list of OUs."
 
   sql = <<-EOT
     with ram_shared_resources as (
@@ -236,7 +236,7 @@ control "ram_resource_shared_with_trusted_organization_units" {
   EOT
 
   param "trusted_organization_units" {
-    description = "Trusted Organization Units"
+    description = "A list of trusted organization units."
     default     = var.trusted_organization_units
   }
 
@@ -288,7 +288,7 @@ control "config_aggregator_shared_with_trusted_accounts" {
   EOT
 
   param "trusted_accounts" {
-    description = "Trusted Accounts"
+    description = "A list of trusted accounts."
     default     = var.trusted_accounts
   }
 
@@ -351,7 +351,7 @@ control "directory_service_directory_shared_with_trusted_accounts" {
         else 'ok'
       end as status,
       case
-        when shared_with_accounts is null or jsonb_array_length(shared_with_accounts) = 0 then directory_id || ' not shared.'
+        when shared_with_accounts is null or jsonb_array_length(shared_with_accounts) = 0 then directory_id || ' is not shared.'
         when untrusted_accounts is not null or jsonb_array_length(shared_with_accounts) > 0 then directory_id || ' shared with ' ||
           case
             when jsonb_array_length(untrusted_accounts) > 2
@@ -369,7 +369,7 @@ control "directory_service_directory_shared_with_trusted_accounts" {
   EOT
 
   param "trusted_accounts" {
-    description = "Trusted Accounts"
+    description = "A list of trusted accounts."
     default     = var.trusted_accounts
   }
 
@@ -380,7 +380,7 @@ control "directory_service_directory_shared_with_trusted_accounts" {
 
 control "dlm_ebs_snapshot_policy_shared_with_trusted_accounts" {
   title       = "DLM policies should only share EBS snapshot copies with trusted accounts"
-  description = "Automating cross-account snapshot copies enables you to copy your Amazon EBS snapshots to specific regions in an isolated account and encrypt those snapshots with an encryption key. This enables you to protect yourself against data loss in the event of your account being compromised. This control checks if the cross-acccount sharing."
+  description = "Automating cross-account snapshot copies enables you to copy your Amazon EBS snapshots to specific regions in an isolated account and encrypt those snapshots with an encryption key. This enables you to protect yourself against data loss in the event of your account being compromised. This control checks if EBS snapshots are being copied to untrusted accounts."
 
   sql = <<-EOT
     with dlm_policy_shared_snapshot_copies as (
@@ -459,7 +459,7 @@ control "dlm_ebs_snapshot_policy_shared_with_trusted_accounts" {
   EOT
 
   param "trusted_accounts" {
-    description = "Trusted Accounts"
+    description = "A list of trusted accounts."
     default     = var.trusted_accounts
   }
 
@@ -470,7 +470,7 @@ control "dlm_ebs_snapshot_policy_shared_with_trusted_accounts" {
 
 control "ec2_ami_shared_with_trusted_accounts" {
   title       = "EC2 AMIs should only be shared with trusted accounts"
-  description = "AWS AMIs can be shared with specific AWS accounts without making the AMI public."
+  description = "AWS AMIs can be shared with specific AWS accounts without making the AMI public. This control checks if AMIs are shared with untrusted accounts."
 
   sql = <<-EOT
     with all_amis as (
@@ -539,7 +539,7 @@ control "ec2_ami_shared_with_trusted_accounts" {
   EOT
 
   param "trusted_accounts" {
-    description = "Trusted Accounts"
+    description = "A list of trusted accounts."
     default     = var.trusted_accounts
   }
 
@@ -550,7 +550,7 @@ control "ec2_ami_shared_with_trusted_accounts" {
 
 control "ec2_ami_shared_with_trusted_organizations" {
   title       = "EC2 AMIs should only be shared with trusted organizations"
-  description = "AWS AMIs can be shared with specific AWS organizations without making the AMI public."
+  description = "AWS AMIs can be shared with specific AWS organizations without making the AMI public. This control checks if AMIs are shared with untrusted organizations."
 
   sql = <<-EOT
     with all_amis as (
@@ -619,7 +619,7 @@ control "ec2_ami_shared_with_trusted_organizations" {
   EOT
 
   param "trusted_organizations" {
-    description = "Trusted Organizations"
+    description = "A list of trusted organizations."
     default     = var.trusted_organizations
   }
 
@@ -630,7 +630,7 @@ control "ec2_ami_shared_with_trusted_organizations" {
 
 control "ec2_ami_shared_with_trusted_organization_units" {
   title       = "EC2 AMIs should only be shared with trusted OUs"
-  description = "AWS AMIs can be shared with specific AWS organizations units without making the AMI public."
+  description = "AWS AMIs can be shared with specific AWS organizations units (OUs) without making the AMI public. This control checks if AMIs are shared with untrusted OUs."
 
   sql = <<-EOT
     with all_amis as (
@@ -699,7 +699,7 @@ control "ec2_ami_shared_with_trusted_organization_units" {
   EOT
 
   param "trusted_organization_units" {
-    description = "Trusted Organization Units"
+    description = "A list of trusted organization units."
     default     = var.trusted_organization_units
   }
 
@@ -748,7 +748,7 @@ control "ebs_snapshot_shared_with_trusted_accounts" {
         else concat('untrusted account ', untrusted_accounts #>> '{0}', '.')
       end
         else
-          case when list is null then s.title || ' not shared.'
+          case when list is null then s.title || ' is not shared.'
           else s.title || ' shared with trusted account(s).' end
       end reason,
       s.region,
@@ -758,7 +758,7 @@ control "ebs_snapshot_shared_with_trusted_accounts" {
   EOT
 
   param "trusted_accounts" {
-    description = "Trusted Accounts"
+    description = "A list of trusted accounts."
     default     = var.trusted_accounts
   }
 
@@ -768,8 +768,8 @@ control "ebs_snapshot_shared_with_trusted_accounts" {
 }
 
 control "guarduty_findings_shared_with_trusted_accounts" {
-  title       = "GuardDuty findings cross-account configuration should be restricted to trusted accounts"
-  description = "GuardDuty findings can be shared with administrator account, this control checks whether findings shared with trusted master account."
+  title       = "GuardDuty findings should only be shared with trusted accounts"
+  description = "This control checks if GuardDuty findings are only shared with trusted administrator accounts."
 
   sql = <<-EOT
     select
@@ -780,9 +780,9 @@ control "guarduty_findings_shared_with_trusted_accounts" {
         'info'
       end as status,
       case when master_account ->> 'AccountId' is null or (master_account ->> 'AccountId')::text = any (($1)::text[]) then
-        title || ' findings restricted with trusted administrator account.'
+        title || ' findings shared with trusted administrator account.'
       else
-        title || ' findings not restricted with trusted administrator account ' || (master_account ->> 'AccountId')::text || '.'
+        title || ' findings shared with untrusted administrator account ' || (master_account ->> 'AccountId')::text || '.'
       end as reason,
       region,
       account_id
@@ -791,7 +791,7 @@ control "guarduty_findings_shared_with_trusted_accounts" {
   EOT
 
   param "trusted_accounts" {
-    description = "Trusted Accounts"
+    description = "A list of trusted accounts."
     default     = var.trusted_accounts
   }
 
@@ -836,7 +836,7 @@ control "rds_db_snapshot_shared_with_trusted_accounts" {
       end
         else
           case
-            when account_list is null then title || ' not shared.'
+            when account_list is null then title || ' is not shared.'
             else title || ' shared with trusted account(s).'
           end
       end reason,
@@ -879,7 +879,7 @@ control "rds_db_snapshot_shared_with_trusted_accounts" {
       end
         else
           case
-            when account_list is null then title || ' not shared.'
+            when account_list is null then title || ' is not shared.'
             else title || ' shared with trusted account(s).'
           end
       end reason,
@@ -890,7 +890,7 @@ control "rds_db_snapshot_shared_with_trusted_accounts" {
   EOT
 
   param "trusted_accounts" {
-    description = "Trusted Accounts"
+    description = "A list of trusted accounts."
     default     = var.trusted_accounts
   }
 
@@ -898,5 +898,3 @@ control "rds_db_snapshot_shared_with_trusted_accounts" {
     service = "AWS/RDS"
   })
 }
-
-
