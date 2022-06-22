@@ -14,7 +14,7 @@ mod "aws_perimeter" {
   color         = "#FF9900"
   documentation = file("./docs/index.md")
   icon          = "/images/mods/turbot/aws-perimeter.svg"
-  categories    = ["aws", "compliance", "public access", "shared access", "security"]
+  categories    = ["aws", "perimeter", "public cloud", "security"]
 
   opengraph {
     title       = "Steampipe Mod for AWS Perimeter"
@@ -24,7 +24,7 @@ mod "aws_perimeter" {
 
   requires {
     plugin "aws" {
-      version = "0.54.0"
+      version = "0.65.0"
     }
   }
 }
