@@ -91,7 +91,7 @@ Several benchmarks have [input variables](https://steampipe.io/docs/using-steamp
 - Set an environment variable:
 
   ```shell
-  SP_VAR_trusted_accounts='["12345678901212", "123123123123"]' steampipe check control.ram_resource_shared_with_trusted_accounts
+  SP_VAR_trusted_accounts='["123456789012", "123123123123"]' steampipe check control.ram_resource_shared_with_trusted_accounts
   ```
 
   - Note: When using environment variables, if the variable is defined in `steampipe.spvars` or passed in through the command line, either of those will take precedence over the environment variable value. For more information on variable definition precedence, please see the link below.
