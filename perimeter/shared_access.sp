@@ -768,7 +768,7 @@ control "ebs_snapshot_shared_with_trusted_accounts" {
 }
 
 control "guarduty_findings_shared_with_trusted_accounts" {
-  title       = "GuardDuty findings cross account configuration should be restricted to trusted accounts"
+  title       = "GuardDuty findings cross-account configuration should be restricted to trusted accounts"
   description = "GuardDuty findings can be shared with administrator account, this control checks whether findings shared with trusted master account."
 
   sql = <<-EOT

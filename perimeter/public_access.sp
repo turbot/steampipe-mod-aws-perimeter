@@ -117,7 +117,7 @@ control "ec2_instance_ami_prohibit_public_access" {
 
 control "eks_cluster_endpoint_prohibit_public_access" {
   title       = "EKS cluster endpoints should prohibit public access"
-  description = "Ensure that Amazon Elastic Kubernetes Service (Amazon EKS) endpoints are not publicly accessible. The rule is non compliant if the endpoints are publicly accessible."
+  description = "Ensure that Amazon Elastic Kubernetes Service (Amazon EKS) endpoints are not publicly accessible. The rule is noncompliant if the endpoints are publicly accessible."
 
   sql = <<-EOT
     select
@@ -308,7 +308,7 @@ control "s3_public_access_block_account" {
 
 control "s3_public_access_block_bucket" {
   title       = "S3 buckets should block public access at bucket level"
-  description = "Ensure Amazon Simple Storage Service (Amazon S3) buckets are not publicly accessible. This rule is non compliant if an Amazon S3 bucket is not listed in the excludedPublicBuckets parameter and bucket level settings are public."
+  description = "Ensure Amazon Simple Storage Service (Amazon S3) buckets are not publicly accessible. This rule is noncompliant if an Amazon S3 bucket is not listed in the excludedPublicBuckets parameter and bucket level settings are public."
 
   sql = <<-EOT
     select

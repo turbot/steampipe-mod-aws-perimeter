@@ -88,7 +88,7 @@ control "elb_application_lb_waf_enabled" {
 
 control "es_domain_in_vpc" {
   title       = "Elasticsearch Service domains should be in a VPC"
-  description = "This control checks whether Amazon Elasticsearch Service domains are in VPC. It does not evaluate the VPC subnet routing configuration to determine public access. You should ensure that Amazon ES domains are not attached to public subnets."
+  description = "This control checks whether Amazon Elasticsearch Service domains are in a VPC. It does not evaluate the VPC subnet routing configuration to determine public access. You should ensure that Amazon ES domains are not attached to public subnets."
 
   sql = <<-EOT
     select
@@ -162,7 +162,7 @@ control "opensearch_domain_in_vpc" {
 
 control "rds_db_instance_in_vpc" {
   title       = "RDS DB instances should be deployed in a VPC"
-  description = "This control checks whether RDS DB instances are deployed in a VPC(EC2-VPC)."
+  description = "This control checks whether RDS DB instances are deployed in a VPC (EC2-VPC)."
 
   sql = <<-EOT
     select
@@ -276,8 +276,8 @@ control "vpc_peering_connection_cross_account_shared" {
         else 'info'
       end status,
       case
-        when accepter_owner_id = requester_owner_id or accepter_owner_id = any (($1)::text[]) then title || ' cross account sharing disabled with any untrusted accounts.'
-        else title || ' cross account sharing with ' || accepter_owner_id || '.'
+        when accepter_owner_id = requester_owner_id or accepter_owner_id = any (($1)::text[]) then title || ' cross-account sharing disabled with any untrusted accounts.'
+        else title || ' cross-account sharing with ' || accepter_owner_id || '.'
       end reason,
       region,
       account_id
@@ -311,7 +311,7 @@ benchmark "security_group_access" {
 
 control "vpc_security_group_restrict_ingress_tcp_udp_all" {
   title       = "VPC security groups should restrict ingress TCP and UDP access from 0.0.0.0/0"
-  description = "This control checks whether any security groups with inbound 0.0.0.0/0 have TCP or UDP ports accessible. The rule is non compliant when a security group with inbound 0.0.0.0/0 have a TCP or UDP ports accessible."
+  description = "This control checks whether any security groups with inbound 0.0.0.0/0 have TCP or UDP ports accessible. The rule is noncompliant when a security group with inbound 0.0.0.0/0 have a TCP or UDP ports accessible."
 
   sql = <<-EOT
     with bad_rules as (
@@ -498,7 +498,7 @@ benchmark "public_ips" {
 
 control "autoscaling_launch_config_public_ip_disabled" {
   title       = "Auto Scaling launch configs should not have a public IP address"
-  description = "Ensure that Amazon EC2 Auto Scaling groups have public IP addresses enabled through Launch Configurations. This rule is non compliant if the Launch Configuration for an Auto Scaling group has AssociatePublicIpAddress set to 'true'."
+  description = "Ensure that Amazon EC2 Auto Scaling groups have public IP addresses enabled through Launch Configurations. This rule is noncompliant if the Launch Configuration for an Auto Scaling group has AssociatePublicIpAddress set to 'true'."
 
   sql = <<-EOT
     select
@@ -644,7 +644,7 @@ control "emr_cluster_master_nodes_no_public_ip" {
 
 control "vpc_subnet_auto_assign_public_ip_disabled" {
   title       = "VPC subnets should not auto-assign public IP addresses"
-  description = "Ensure if Amazon Virtual Private Cloud (Amazon VPC) subnets are assigned a public IP address. The control is compliant if Amazon VPC does not have subnets that are assigned a public IP address. The control is non compliant if Amazon VPC has subnets that are assigned a public IP address."
+  description = "This control checks whether VPC subnets automatically assign public IPv4 addresses."
 
   sql = <<-EOT
     select
@@ -654,8 +654,8 @@ control "vpc_subnet_auto_assign_public_ip_disabled" {
         else 'alarm'
       end as status,
       case
-        when map_public_ip_on_launch = 'false' then title || ' auto assign public IP disabled.'
-        else title || ' auto assign public IP enabled.'
+        when map_public_ip_on_launch = 'false' then title || ' auto-assign public IP addresses disabled.'
+        else title || ' auto-assign public IP addresses enabled.'
       end as reason,
       region,
       account_id
