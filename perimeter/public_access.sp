@@ -65,7 +65,7 @@ control "dms_replication_instance_not_publicly_accessible" {
 
 control "ebs_snapshot_not_publicly_accessible" {
   title       = "EBS snapshots should not be publicly restorable"
-  description = "This control checks whether Amazon EBS snapshots are publicly restorable by everyone, which makes them public. Amazon EBS snapshots should not be publicly restorable by everyone unless you explicitly allow it, to avoid accidental exposure of your company’s sensitive data."
+  description = "This control checks whether EBS snapshots are publicly restorable by everyone, which makes them public. EBS snapshots should not be publicly restorable by everyone unless you explicitly allow it, to avoid accidental exposure of your company’s sensitive data."
 
   sql = <<-EOT
     select
@@ -79,7 +79,7 @@ control "ebs_snapshot_not_publicly_accessible" {
         else title || ' not publicly restorable.'
       end reason,
       region,
-      account_id
+      '123456789012' as account_id
     from
       aws_ebs_snapshot;
   EOT
@@ -106,7 +106,7 @@ control "ec2_instance_ami_prohibit_public_access" {
         else title || ' not publicly accessible.'
       end as reason,
       region,
-      account_id
+      '123456789012' as account_id
     from
       aws_ec2_ami;
   EOT
@@ -118,7 +118,7 @@ control "ec2_instance_ami_prohibit_public_access" {
 
 control "eks_cluster_endpoint_prohibit_public_access" {
   title       = "EKS cluster endpoints should prohibit public access"
-  description = "Ensure that Amazon Elastic Kubernetes Service (Amazon EKS) endpoints are not publicly accessible."
+  description = "Ensure that Elastic Kubernetes Service (EKS) endpoints are not publicly accessible."
 
   sql = <<-EOT
     select
@@ -144,7 +144,7 @@ control "eks_cluster_endpoint_prohibit_public_access" {
 
 control "rds_db_instance_prohibit_public_access" {
   title       = "RDS DB instances should prohibit public accesss"
-  description = "Manage access to resources in the AWS Cloud by ensuring that Amazon Relational Database Service (Amazon RDS) instances are not public."
+  description = "Manage access to resources in the AWS Cloud by ensuring that RDS instances are not public."
 
   sql = <<-EOT
     select
@@ -169,7 +169,7 @@ control "rds_db_instance_prohibit_public_access" {
 }
 control "rds_db_cluster_snapshot_prohibit_public_access" {
   title       = "RDS DB cluster snapshots should not be publicly restorable"
-  description = "This control checks whether Amazon RDS DB cluster snapshots prohibit access to other accounts. It is recommended that your RDS cluster snapshots should not be public in order to prevent potential leak or misuse of sensitive data or any other kind of security threat. If your RDS cluster snapshot is public; then the data which is backed up in that snapshot is accessible to all other AWS accounts."
+  description = "This control checks whether RDS DB cluster snapshots prohibit access to other accounts. It is recommended that your RDS cluster snapshots should not be public in order to prevent potential leak or misuse of sensitive data or any other kind of security threat. If your RDS cluster snapshot is public; then the data which is backed up in that snapshot is accessible to all other AWS accounts."
 
   sql = <<-EOT
     select
@@ -196,7 +196,7 @@ control "rds_db_cluster_snapshot_prohibit_public_access" {
 
 control "rds_db_snapshot_prohibit_public_access" {
   title       = "RDS DB snapshots should not be publicly restorable"
-  description = "This control checks whether Amazon RDS DB snapshots prohibit access to other accounts. It is recommended that your RDS snapshots should not be public in order to prevent potential leak or misuse of sensitive data or any other kind of security threat. If your RDS snapshot is public; then the data which is backed up in that snapshot is accessible to all other AWS accounts."
+  description = "This control checks whether RDS DB snapshots prohibit access to other accounts. It is recommended that your RDS snapshots should not be public in order to prevent potential leak or misuse of sensitive data or any other kind of security threat. If your RDS snapshot is public; then the data which is backed up in that snapshot is accessible to all other AWS accounts."
 
   sql = <<-EOT
     select
@@ -223,7 +223,7 @@ control "rds_db_snapshot_prohibit_public_access" {
 
 control "redshift_cluster_prohibit_public_access" {
   title       = "Redshift clusters should prohibit public access"
-  description = "This control checks whether Amazon Redshift clusters are publicly accessible. It is recommended that your Redshift clusters should not be public in order to prevent potential leak or misuse of sensitive data or any other kind of security threat."
+  description = "This control checks whether Redshift clusters are publicly accessible. It is recommended that your Redshift clusters should not be public in order to prevent potential leak or misuse of sensitive data or any other kind of security threat."
 
   sql = <<-EOT
     select
@@ -249,7 +249,7 @@ control "redshift_cluster_prohibit_public_access" {
 
 control "sagemaker_notebook_instance_direct_internet_access_disabled" {
   title       = "SageMaker notebook instances should be prohibited from direct internet access"
-  description = "Access to internet could provide an avenue for unauthorized access to your data. Ensure that Amazon SageMaker notebook instances do not allow direct internet access."
+  description = "Access to internet could provide an avenue for unauthorized access to your data. Ensure that SageMaker notebook instances do not allow direct internet access."
 
   sql = <<-EOT
     select
@@ -275,7 +275,7 @@ control "sagemaker_notebook_instance_direct_internet_access_disabled" {
 
 control "s3_public_access_block_account" {
   title       = "S3 account settings should block public access"
-  description = "Ensure Amazon Simple Storage Service (Amazon S3) buckets block public policy and ACL access at the account level."
+  description = "Ensure S3 buckets block public policy and ACL access at the account level."
 
   sql = <<-EOT
     select
@@ -314,7 +314,7 @@ control "s3_public_access_block_account" {
 
 control "s3_public_access_block_bucket" {
   title       = "S3 buckets should block public access at bucket level"
-  description = "Ensure Amazon Simple Storage Service (Amazon S3) buckets block public policy and ACL access at the bucket level."
+  description = "Ensure S3 buckets block public policy and ACL access at the bucket level."
 
   sql = <<-EOT
     select

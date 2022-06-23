@@ -1,17 +1,18 @@
-# AWS Perimeter Scanning Tool
+# AWS Perimeter Tool
 
-40+ checks spanning 20+ AWS services which will scan all your AWS accounts across all regions for the resources that are publicly exposed or shared with untrusted accounts.
+An AWS perimeter checking tool that can be used to look for resources that are publicly accessible, shared with untrusted accounts, have insecure network configurations, and more.
 
 Run checks in a dashboard:
-![image](https://raw.githubusercontent.com/turbot/steampipe-mod-aws-perimeter/main/docs/aws_perimeter_public_access.png)
+![image](https://raw.githubusercontent.com/turbot/steampipe-mod-aws-perimeter/main/docs/images/aws_perimeter_public_access_dashboard.png)
 
 Or in a terminal:
-![image](https://raw.githubusercontent.com/turbot/steampipe-mod-aws-perimeter/main/docs/aws_perimeter_console.png)
+![image](https://raw.githubusercontent.com/turbot/steampipe-mod-aws-perimeter/main/docs/images/aws_perimeter_public_access_output.png)
 
 Includes support for:
-* [AWS Network Access](https://hub.steampipe.io/mods/turbot/aws-perimeter/controls/benchmark.network_access)
-* [AWS Public Access](https://hub.steampipe.io/mods/turbot/aws-perimeter/controls/benchmark.public_access)
-* [AWS Shared Access](https://hub.steampipe.io/mods/turbot/aws-perimeter/controls/benchmark.shared_access)
+
+* [Network Access](https://hub.steampipe.io/mods/turbot/aws-perimeter/controls/benchmark.network_access)
+* [Public Access](https://hub.steampipe.io/mods/turbot/aws-perimeter/controls/benchmark.public_access)
+* [Shared Access](https://hub.steampipe.io/mods/turbot/aws-perimeter/controls/benchmark.shared_access)
 
 ## Getting started
 

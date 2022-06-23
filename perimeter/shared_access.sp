@@ -32,7 +32,7 @@ benchmark "shared_access" {
 
 benchmark "ram_shared_access" {
   title         = "RAM Shared Access"
-  description   = "AWS Resource Access Manager (RAM) helps you securely share the AWS resources that you create in one AWS account with other AWS accounts. Resources shared through RAM should only be shared with trusted accounts."
+  description   = "AWS Resource Access Manager (RAM) helps you securely share your resources that you create in one AWS account with other AWS accounts. Resources shared through RAM should only be shared with trusted accounts."
   documentation = file("./perimeter/docs/ram_shared_access.md")
   children = [
     control.ram_resource_shared_with_trusted_accounts,
@@ -380,7 +380,7 @@ control "directory_service_directory_shared_with_trusted_accounts" {
 
 control "dlm_ebs_snapshot_policy_shared_with_trusted_accounts" {
   title       = "DLM policies should only share EBS snapshot copies with trusted accounts"
-  description = "Automating cross-account snapshot copies enables you to copy your Amazon EBS snapshots to specific regions in an isolated account and encrypt those snapshots with an encryption key. This enables you to protect yourself against data loss in the event of your account being compromised. This control checks if EBS snapshots are being copied to untrusted accounts."
+  description = "Automating cross-account snapshot copies enables you to copy your EBS snapshots to specific regions in an isolated account and encrypt those snapshots with an encryption key. This enables you to protect yourself against data loss in the event of your account being compromised. This control checks if EBS snapshots are being copied to untrusted accounts."
 
   sql = <<-EOT
     with dlm_policy_shared_snapshot_copies as (
@@ -802,7 +802,7 @@ control "guarduty_findings_shared_with_trusted_accounts" {
 
 control "rds_db_snapshot_shared_with_trusted_accounts" {
   title       = "RDS DB snapshots should only be shared with trusted accounts"
-  description = "This control checks whether Amazon RDS DB snapshots access is restricted to trusted accounts."
+  description = "This control checks whether RDS DB snapshots access is restricted to trusted accounts."
 
   sql = <<-EOT
     (with shared_cluster_snapshot_data as (
