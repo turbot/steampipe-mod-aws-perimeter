@@ -606,7 +606,7 @@ control "sns_topic_policy_prohibit_public_access" {
       case
         when p.topic_arn is null then 'ok'
         else 'alarm'
-      end status,
+      end as status,
       case
         when p.topic_arn is null then title || ' does not allow public access.'
         else title || ' contains ' || coalesce(p.statements_num,0) ||
@@ -650,7 +650,7 @@ control "sqs_queue_policy_prohibit_public_access" {
       case
         when p.queue_arn is null then 'ok'
         else 'alarm'
-      end status,
+      end as status,
       case
         when p.queue_arn is null then title || ' does not allow public access.'
         else title || ' contains ' || coalesce(p.statements_num,0) ||
@@ -694,7 +694,7 @@ control "glacier_vault_policy_prohibit_public_access" {
       case
         when p.vault_arn is null then 'ok'
         else 'alarm'
-      end status,
+      end as status,
       case
         when p.vault_arn is null then title || ' does not allow public access.'
         else title || ' contains ' || coalesce(p.statements_num,0) ||
@@ -735,7 +735,7 @@ control "iam_role_trust_policy_prohibit_public_access" {
       case
         when a.arn is null then 'ok'
         else 'alarm'
-      end status,
+      end as status,
       case
         when a.arn is null then title || ' trust policy does not allow public access.'
         else title || ' contains ' || coalesce(a.statements_num,0) ||
@@ -779,7 +779,7 @@ control "kms_key_policy_prohibit_public_access" {
       case
         when p.arn is null then 'ok'
         else 'alarm'
-      end status,
+      end as status,
       case
         when p.arn is null then title || ' does not allow public access.'
         else title || ' contains ' || coalesce(p.statements_num,0) ||
