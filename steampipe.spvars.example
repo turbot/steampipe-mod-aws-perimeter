@@ -1,0 +1,8 @@
+# List of trusted accounts
+trusted_accounts = ["123456789012"]
+
+# List of trusted organizations
+trusted_organizations = ["o-abcdhqk8mns", "o-efghqk8pab"]
+
+# List of trusted organization units (OUs)
+trusted_organization_units = ["ou-abcdek7fks", "ou-123def789"]

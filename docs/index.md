@@ -1,18 +1,29 @@
-# AWS Perimeter Tool
+---
+repository: "https://github.com/turbot/steampipe-mod-aws-perimeter"
+---
 
-An AWS perimeter checking tool that can be used to look for resources that are publicly accessible, shared with untrusted accounts, have insecure network configurations, and more.
+# AWS Perimeter Mod
 
-Run checks in a dashboard:
-![image](https://raw.githubusercontent.com/turbot/steampipe-mod-aws-perimeter/main/docs/images/aws_perimeter_public_access_dashboard.png)
+Run security controls across all your AWS accounts to look for resources that are publicly accessible resources, shared with untrusted accounts, have insecure network configurations, and more.
 
-Or in a terminal:
-![image](https://raw.githubusercontent.com/turbot/steampipe-mod-aws-perimeter/main/docs/images/aws_perimeter_public_access_output.png)
+<img src="https://raw.githubusercontent.com/turbot/steampipe-mod-aws-perimeter/main/docs/images/aws_perimeter_dashboard.png" width="50%" type="thumbnail"/>
+<img src="https://raw.githubusercontent.com/turbot/steampipe-mod-aws-perimeter/main/docs/images/aws_perimeter_network_access_dashboard.png" width="50%" type="thumbnail"/>
+<img src="https://raw.githubusercontent.com/turbot/steampipe-mod-aws-perimeter/main/docs/images/aws_perimeter_public_access_dashboard.png" width="50%" type="thumbnail"/>
+<img src="https://raw.githubusercontent.com/turbot/steampipe-mod-aws-perimeter/main/docs/images/aws_perimeter_shared_access_dashboard.png" width="50%" type="thumbnail"/>
+<img src="https://raw.githubusercontent.com/turbot/steampipe-mod-aws-perimeter/main/docs/images/aws_perimeter_public_access_output.png" width="50%" type="thumbnail"/>
 
-Includes support for:
+## References
 
-* [Network Access](https://hub.steampipe.io/mods/turbot/aws-perimeter/controls/benchmark.network_access)
-* [Public Access](https://hub.steampipe.io/mods/turbot/aws-perimeter/controls/benchmark.public_access)
-* [Shared Access](https://hub.steampipe.io/mods/turbot/aws-perimeter/controls/benchmark.shared_access)
+[AWS](https://aws.amazon.com/) provides on-demand cloud computing platforms and APIs to authenticated customers on a metered pay-as-you-go basis.
+
+[Steampipe](https://steampipe.io) is an open source CLI to instantly query cloud APIs using SQL.
+
+[Steampipe Mods](https://steampipe.io/docs/reference/mod-resources#mod) are collections of `named queries`, and codified `controls` that can be used to test current configuration of your cloud resources against a desired configuration.
+
+## Documentation
+
+- **[Benchmarks and controls →](https://hub.steampipe.io/mods/turbot/aws_perimeter/controls)**
+- **[Named queries →](https://hub.steampipe.io/mods/turbot/aws_perimeter/queries)**
 
 ## Getting started
 
