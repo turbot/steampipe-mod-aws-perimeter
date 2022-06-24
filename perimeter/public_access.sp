@@ -479,7 +479,10 @@ locals {
           s -> 'Condition' -> 'StringLike' -> 'aws:principalarn' is null
           or s -> 'Condition' -> 'StringLike' -> 'aws:principalarn' ? '*'
         )
-        and s -> 'Condition' -> 'ArnEquals' -> 'aws:principalarn' is null
+        and (
+          s -> 'Condition' -> 'ArnEquals' -> 'aws:principalarn' is null
+          or s -> 'Condition' -> 'ArnEquals' -> 'aws:principalarn' ? '*'
+        )
         and (
           s -> 'Condition' -> 'ArnLike' -> 'aws:principalarn' is null
           or s -> 'Condition' -> 'ArnLike' -> 'aws:principalarn' ? '*'
@@ -491,7 +494,10 @@ locals {
           s -> 'Condition' -> 'StringLike' -> 'aws:sourcearn' is null
           or s -> 'Condition' -> 'StringLike' -> 'aws:sourcearn' ? '*'
         )
-        and s -> 'Condition' -> 'ArnEquals' -> 'aws:sourcearn' is null
+        and (
+          s -> 'Condition' -> 'ArnEquals' -> 'aws:sourcearn' is null
+          or s -> 'Condition' -> 'ArnEquals' -> 'aws:sourcearn' ? '*'
+        )
         and (
           s -> 'Condition' -> 'ArnLike' -> 'aws:sourcearn' is null
           or s -> 'Condition' -> 'ArnLike' -> 'aws:sourcearn' ? '*'
