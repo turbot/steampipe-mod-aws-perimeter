@@ -433,6 +433,99 @@ control "s3_bucket_acl_prohibit_public_write_access" {
   })
 }
 
+locals {
+  resource_policy_public_sql = <<EOT
+    with wildcard_action_policies as (
+      select
+        __ARN_COLUMN__,
+        count(*) as statements_num
+      from
+        __TABLE_NAME__,
+        jsonb_array_elements(policy_std -> 'Statement') as s
+      where
+        s ->> 'Effect' = 'Allow'
+        -- aws:SourceOwner
+        and s -> 'Condition' -> 'StringEquals' -> 'aws:sourceowner' is null
+        and s -> 'Condition' -> 'StringEqualsIgnoreCase' -> 'aws:sourceowner' is null
+        and (
+          s -> 'Condition' -> 'StringLike' -> 'aws:sourceowner' is null
+          or s -> 'Condition' -> 'StringLike' -> 'aws:sourceowner' ? '*'
+        )
+        -- aws:SourceAccount
+        and s -> 'Condition' -> 'StringEquals' -> 'aws:sourceaccount' is null
+        and s -> 'Condition' -> 'StringEqualsIgnoreCase' -> 'aws:sourceaccount' is null
+        and (
+          s -> 'Condition' -> 'StringLike' -> 'aws:sourceaccount' is null
+          or s -> 'Condition' -> 'StringLike' -> 'aws:sourceaccount' ? '*'
+        )
+        -- aws:PrincipalOrgID
+        and s -> 'Condition' -> 'StringEquals' -> 'aws:principalorgid' is null
+        and s -> 'Condition' -> 'StringEqualsIgnoreCase' -> 'aws:principalorgid' is null
+        and (
+          s -> 'Condition' -> 'StringLike' -> 'aws:principalorgid' is null
+          or s -> 'Condition' -> 'StringLike' -> 'aws:principalorgid' ? '*'
+        )
+        -- aws:PrincipalAccount
+        and s -> 'Condition' -> 'StringEquals' -> 'aws:principalaccount' is null
+        and s -> 'Condition' -> 'StringEqualsIgnoreCase' -> 'aws:principalaccount' is null
+        and (
+          s -> 'Condition' -> 'StringLike' -> 'aws:principalaccount' is null
+          or s -> 'Condition' -> 'StringLike' -> 'aws:principalaccount' ? '*'
+        )
+        -- aws:PrincipalArn
+        and s -> 'Condition' -> 'StringEquals' -> 'aws:principalarn' is null
+        and s -> 'Condition' -> 'StringEqualsIgnoreCase' -> 'aws:principalarn' is null
+        and (
+          s -> 'Condition' -> 'StringLike' -> 'aws:principalarn' is null
+          or s -> 'Condition' -> 'StringLike' -> 'aws:principalarn' ? '*'
+        )
+        and s -> 'Condition' -> 'ArnEquals' -> 'aws:principalarn' is null
+        and (
+          s -> 'Condition' -> 'ArnLike' -> 'aws:principalarn' is null
+          or s -> 'Condition' -> 'ArnLike' -> 'aws:principalarn' ? '*'
+        )
+        -- aws:SourceArn
+        and s -> 'Condition' -> 'StringEquals' -> 'aws:sourcearn' is null
+        and s -> 'Condition' -> 'StringEqualsIgnoreCase' -> 'aws:sourcearn' is null
+        and (
+          s -> 'Condition' -> 'StringLike' -> 'aws:sourcearn' is null
+          or s -> 'Condition' -> 'StringLike' -> 'aws:sourcearn' ? '*'
+        )
+        and s -> 'Condition' -> 'ArnEquals' -> 'aws:sourcearn' is null
+        and (
+          s -> 'Condition' -> 'ArnLike' -> 'aws:sourcearn' is null
+          or s -> 'Condition' -> 'ArnLike' -> 'aws:sourcearn' ? '*'
+        )
+        and (
+          s -> 'Principal' -> 'AWS' = '["*"]'
+          or s ->> 'Principal' = '*'
+        )
+      group by
+        __ARN_COLUMN__
+    )
+    select
+      r.__ARN_COLUMN__ as resource,
+      case
+        when p.__ARN_COLUMN__ is null then 'ok'
+        else 'alarm'
+      end as status,
+      case
+        when p.__ARN_COLUMN__ is null then title || ' policy does not allow public access.'
+        else title || ' policy contains ' || coalesce(p.statements_num, 0) ||
+        ' statement(s) that allow public access.'
+      end as reason,
+      __DIMENSIONS__
+    from
+      __TABLE_NAME__ as r
+      left join wildcard_action_policies as p on p.__ARN_COLUMN__ = r.__ARN_COLUMN__
+  EOT
+}
+
+locals {
+  resource_policy_public_sql_account = replace(local.resource_policy_public_sql, "__DIMENSIONS__", "r.account_id")
+  resource_policy_public_sql_region  = replace(local.resource_policy_public_sql, "__DIMENSIONS__", "r.region, r.account_id")
+}
+
 benchmark "resource_policy_public_access" {
   title         = "Resource Policy Public Access"
   description   = "Resources should not be publicly accessible through statements in their resource policies."
@@ -456,39 +549,7 @@ benchmark "resource_policy_public_access" {
 control "ecr_repository_policy_prohibit_public_access" {
   title       = "ECR repository policies should prohibit public access"
   description = "Check if ECR repository policies allow public access."
-
-  sql = <<-EOT
-    with open_access_ecr_repo as(
-      select
-        distinct arn
-      from
-        aws_ecr_repository,
-        jsonb_array_elements(policy_std -> 'Statement') as s,
-        jsonb_array_elements_text(s -> 'Principal' -> 'AWS') as p,
-        string_to_array(p, ':') as pa,
-        jsonb_array_elements_text(s -> 'Action') as a
-      where
-        s ->> 'Effect' = 'Allow'
-        and p = '*'
-    )
-    select
-      r.arn as resource,
-      case
-        when o.arn is not null then 'alarm'
-        else 'ok'
-      end as status,
-      case
-        when o.arn is not null then r.title || ' allows public accesss.'
-        else r.title || ' does not allow public access.'
-      end as reason,
-      r.region,
-      r.account_id
-    from
-      aws_ecr_repository as r
-      left join open_access_ecr_repo as o on r.arn = o.arn
-    group by
-      resource, status, reason, r.region, r.account_id;
-  EOT
+  sql         = replace(replace(local.resource_policy_public_sql_region, "__TABLE_NAME__", "aws_ecr_repository"), "__ARN_COLUMN__", "arn")
 
   tags = merge(local.aws_perimeter_common_tags, {
     service = "AWS/ECR"
@@ -498,41 +559,7 @@ control "ecr_repository_policy_prohibit_public_access" {
 control "lambda_function_policy_prohibit_public_access" {
   title       = "Lambda function policies should prohibit public access"
   description = "Check if Lambda function policies allow public access."
-
-  sql = <<-EOT
-    with wildcard_action_policies as (
-      select
-        arn,
-        count(*) as statements_num
-      from
-        aws_lambda_function,
-        jsonb_array_elements(policy_std -> 'Statement') as s
-      where
-        s ->> 'Effect' = 'Allow'
-        and (
-          ( s -> 'Principal' -> 'AWS') = '["*"]'
-          or s ->> 'Principal' = '*'
-        )
-      group by
-        arn
-    )
-    select
-      f.arn as resource,
-      case
-        when p.arn is null then 'ok'
-        else 'alarm'
-      end status,
-      case
-        when p.arn is null then title || ' does not allow public access.'
-        else title || ' contains ' || coalesce(p.statements_num,0) ||
-        ' statements that allows public access.'
-      end as reason,
-      f.region,
-      f.account_id
-    from
-      aws_lambda_function as f
-      left join wildcard_action_policies as p on p.arn = f.arn;
-  EOT
+  sql         = replace(replace(local.resource_policy_public_sql_region, "__TABLE_NAME__", "aws_lambda_function"), "__ARN_COLUMN__", "arn")
 
   tags = merge(local.aws_perimeter_common_tags, {
     service = "AWS/Lambda"
@@ -542,38 +569,7 @@ control "lambda_function_policy_prohibit_public_access" {
 control "s3_bucket_policy_prohibit_public_access" {
   title       = "S3 bucket policies should prohibit public access"
   description = "Check if S3 bucket policies allow public access."
-
-  sql = <<-EOT
-    with wildcard_action_policies as (
-      select
-        arn,
-        count(*) as statements_num
-      from
-        aws_s3_bucket,
-        jsonb_array_elements(policy_std -> 'Statement') as s
-      where
-        s ->> 'Effect' = 'Allow'
-        and( s -> 'Principal' -> 'AWS') = '["*"]'
-      group by
-        arn
-    )
-    select
-      s.arn as resource,
-      case
-        when p.arn is null then 'ok'
-        else 'alarm'
-      end status,
-      case
-        when p.arn is null then name || ' does not allow public access.'
-        else name || ' contains ' || coalesce(p.statements_num,0) ||
-        ' statements that allows public access.'
-      end as reason,
-      s.region,
-      s.account_id
-    from
-      aws_s3_bucket as s
-      left join wildcard_action_policies as p on p.arn = s.arn;
-  EOT
+  sql         = replace(replace(local.resource_policy_public_sql_region, "__TABLE_NAME__", "aws_s3_bucket"), "__ARN_COLUMN__", "arn")
 
   tags = merge(local.aws_perimeter_common_tags, {
     service = "AWS/S3"
@@ -583,41 +579,7 @@ control "s3_bucket_policy_prohibit_public_access" {
 control "sns_topic_policy_prohibit_public_access" {
   title       = "SNS topic policies should prohibit public access"
   description = "Check if SNS topic policies allow public access."
-
-  sql = <<-EOT
-    with wildcard_action_policies as (
-      select
-        topic_arn,
-        count(*) as statements_num
-      from
-        aws_sns_topic,
-        jsonb_array_elements(policy_std -> 'Statement') as s
-      where
-        s ->> 'Effect' = 'Allow'
-        and (
-          ( s -> 'Principal' -> 'AWS') = '["*"]'
-          or s ->> 'Principal' = '*'
-        )
-      group by
-        topic_arn
-    )
-    select
-      t.topic_arn as resource,
-      case
-        when p.topic_arn is null then 'ok'
-        else 'alarm'
-      end as status,
-      case
-        when p.topic_arn is null then title || ' does not allow public access.'
-        else title || ' contains ' || coalesce(p.statements_num,0) ||
-        ' statements that allows public access.'
-      end as reason,
-      t.region,
-      t.account_id
-    from
-      aws_sns_topic as t
-      left join wildcard_action_policies as p on p.topic_arn = t.topic_arn;
-  EOT
+  sql         = replace(replace(local.resource_policy_public_sql_region, "__TABLE_NAME__", "aws_sns_topic"), "__ARN_COLUMN__", "topic_arn")
 
   tags = merge(local.aws_perimeter_common_tags, {
     service = "AWS/SNS"
@@ -627,41 +589,7 @@ control "sns_topic_policy_prohibit_public_access" {
 control "sqs_queue_policy_prohibit_public_access" {
   title       = "SQS queue policies should prohibit public access"
   description = "Check if SQS queue policies allow public access."
-
-  sql = <<-EOT
-    with wildcard_action_policies as (
-      select
-        queue_arn,
-        count(*) as statements_num
-      from
-        aws_sqs_queue,
-        jsonb_array_elements(policy_std -> 'Statement') as s
-      where
-        s ->> 'Effect' = 'Allow'
-        and (
-          ( s -> 'Principal' -> 'AWS') = '["*"]'
-          or s ->> 'Principal' = '*'
-        )
-      group by
-        queue_arn
-    )
-    select
-      q.queue_arn as resource,
-      case
-        when p.queue_arn is null then 'ok'
-        else 'alarm'
-      end as status,
-      case
-        when p.queue_arn is null then title || ' does not allow public access.'
-        else title || ' contains ' || coalesce(p.statements_num,0) ||
-        ' statements that allows public access.'
-      end as reason,
-      q.region,
-      q.account_id
-    from
-      aws_sqs_queue as q
-      left join wildcard_action_policies as p on q.queue_arn = p.queue_arn;
-  EOT
+  sql         = replace(replace(local.resource_policy_public_sql_region, "__TABLE_NAME__", "aws_sqs_queue"), "__ARN_COLUMN__", "queue_arn")
 
   tags = merge(local.aws_perimeter_common_tags, {
     service = "AWS/SQS"
@@ -671,41 +599,7 @@ control "sqs_queue_policy_prohibit_public_access" {
 control "glacier_vault_policy_prohibit_public_access" {
   title       = "Glacier vault policies should prohibit public access"
   description = "Check if Glacier vault policies allow public access."
-
-  sql = <<-EOT
-    with wildcard_action_policies as (
-      select
-        vault_arn,
-        count(*) as statements_num
-      from
-        aws_glacier_vault,
-        jsonb_array_elements(policy_std -> 'Statement') as s
-      where
-        s ->> 'Effect' = 'Allow'
-        and (
-          ( s -> 'Principal' -> 'AWS') = '["*"]'
-          or s ->> 'Principal' = '*'
-        )
-      group by
-        vault_arn
-    )
-    select
-      v.vault_arn as resource,
-      case
-        when p.vault_arn is null then 'ok'
-        else 'alarm'
-      end as status,
-      case
-        when p.vault_arn is null then title || ' does not allow public access.'
-        else title || ' contains ' || coalesce(p.statements_num,0) ||
-        ' statements that allows public access.'
-      end as reason,
-      v.region,
-      v.account_id
-    from
-      aws_glacier_vault as v
-      left join wildcard_action_policies as p on v.vault_arn = p.vault_arn;
-  EOT
+  sql         = replace(replace(local.resource_policy_public_sql_region, "__TABLE_NAME__", "aws_glacier_vault"), "__ARN_COLUMN__", "vault_arn")
 
   tags = merge(local.aws_perimeter_common_tags, {
     service = "AWS/Glacier"
@@ -717,34 +611,89 @@ control "iam_role_trust_policy_prohibit_public_access" {
   description = "Check if IAM role trust policies provide public access, allowing any principal to assume the role."
 
   sql = <<-EOT
-    with assume_role as (
+    with wildcard_action_policies as (
       select
         arn,
-         count(*) as statements_num
+        count(*) as statements_num
       from
         aws_iam_role,
-        jsonb_array_elements(assume_role_policy_std -> 'Statement') as stmt,
-        jsonb_array_elements_text(stmt -> 'Principal' -> 'AWS') as trust
+        jsonb_array_elements(assume_role_policy_std -> 'Statement') as s
       where
-        trust = '*'
+        s ->> 'Effect' = 'Allow'
+        -- aws:SourceOwner
+        and s -> 'Condition' -> 'StringEquals' -> 'aws:sourceowner' is null
+        and s -> 'Condition' -> 'StringEqualsIgnoreCase' -> 'aws:sourceowner' is null
+        and (
+          s -> 'Condition' -> 'StringLike' -> 'aws:sourceowner' is null
+          or s -> 'Condition' -> 'StringLike' -> 'aws:sourceowner' ? '*'
+        )
+        -- aws:SourceAccount
+        and s -> 'Condition' -> 'StringEquals' -> 'aws:sourceaccount' is null
+        and s -> 'Condition' -> 'StringEqualsIgnoreCase' -> 'aws:sourceaccount' is null
+        and (
+          s -> 'Condition' -> 'StringLike' -> 'aws:sourceaccount' is null
+          or s -> 'Condition' -> 'StringLike' -> 'aws:sourceaccount' ? '*'
+        )
+        -- aws:PrincipalOrgID
+        and s -> 'Condition' -> 'StringEquals' -> 'aws:principalorgid' is null
+        and s -> 'Condition' -> 'StringEqualsIgnoreCase' -> 'aws:principalorgid' is null
+        and (
+          s -> 'Condition' -> 'StringLike' -> 'aws:principalorgid' is null
+          or s -> 'Condition' -> 'StringLike' -> 'aws:principalorgid' ? '*'
+        )
+        -- aws:PrincipalAccount
+        and s -> 'Condition' -> 'StringEquals' -> 'aws:principalaccount' is null
+        and s -> 'Condition' -> 'StringEqualsIgnoreCase' -> 'aws:principalaccount' is null
+        and (
+          s -> 'Condition' -> 'StringLike' -> 'aws:principalaccount' is null
+          or s -> 'Condition' -> 'StringLike' -> 'aws:principalaccount' ? '*'
+        )
+        -- aws:PrincipalArn
+        and s -> 'Condition' -> 'StringEquals' -> 'aws:principalarn' is null
+        and s -> 'Condition' -> 'StringEqualsIgnoreCase' -> 'aws:principalarn' is null
+        and (
+          s -> 'Condition' -> 'StringLike' -> 'aws:principalarn' is null
+          or s -> 'Condition' -> 'StringLike' -> 'aws:principalarn' ? '*'
+        )
+        and s -> 'Condition' -> 'ArnEquals' -> 'aws:principalarn' is null
+        and (
+          s -> 'Condition' -> 'ArnLike' -> 'aws:principalarn' is null
+          or s -> 'Condition' -> 'ArnLike' -> 'aws:principalarn' ? '*'
+        )
+        -- aws:SourceArn
+        and s -> 'Condition' -> 'StringEquals' -> 'aws:sourcearn' is null
+        and s -> 'Condition' -> 'StringEqualsIgnoreCase' -> 'aws:sourcearn' is null
+        and (
+          s -> 'Condition' -> 'StringLike' -> 'aws:sourcearn' is null
+          or s -> 'Condition' -> 'StringLike' -> 'aws:sourcearn' ? '*'
+        )
+        and s -> 'Condition' -> 'ArnEquals' -> 'aws:sourcearn' is null
+        and (
+          s -> 'Condition' -> 'ArnLike' -> 'aws:sourcearn' is null
+          or s -> 'Condition' -> 'ArnLike' -> 'aws:sourcearn' ? '*'
+        )
+        and (
+          s -> 'Principal' -> 'AWS' = '["*"]'
+          or s ->> 'Principal' = '*'
+        )
       group by
         arn
     )
     select
       r.arn as resource,
       case
-        when a.arn is null then 'ok'
+        when p.arn is null then 'ok'
         else 'alarm'
       end as status,
       case
-        when a.arn is null then title || ' trust policy does not allow public access.'
-        else title || ' contains ' || coalesce(a.statements_num,0) ||
-        ' trust policy allows public access.'
+        when p.arn is null then title || ' trust policy does not allow public access.'
+        else title || ' trust policy contains ' || coalesce(p.statements_num, 0) ||
+        ' statement(s) that allow public access.'
       end as reason,
       r.account_id
     from
       aws_iam_role as r
-      left join assume_role as a on r.arn = a.arn;
+      left join wildcard_action_policies as p on p.arn = r.arn;
   EOT
 
   tags = merge(local.aws_perimeter_common_tags, {
@@ -755,44 +704,7 @@ control "iam_role_trust_policy_prohibit_public_access" {
 control "kms_key_policy_prohibit_public_access" {
   title       = "KMS key policies should prohibit public access"
   description = "Check if KMS key policies allow public access."
-
-  sql = <<-EOT
-    with wildcard_action_policies as (
-      select
-        arn,
-        count(*) as statements_num
-      from
-        aws_kms_key,
-        jsonb_array_elements(policy_std -> 'Statement') as s
-      where
-        s ->> 'Effect' = 'Allow'
-        and (
-          ( s -> 'Principal' -> 'AWS') = '["*"]'
-          or  s ->> 'Principal' = '*'
-        )
-        and key_manager = 'CUSTOMER'
-      group by
-        arn
-    )
-    select
-      k.arn as resource,
-      case
-        when p.arn is null then 'ok'
-        else 'alarm'
-      end as status,
-      case
-        when p.arn is null then title || ' does not allow public access.'
-        else title || ' contains ' || coalesce(p.statements_num,0) ||
-        ' statements that allows public access.'
-      end as reason,
-      k.region,
-      k.account_id
-    from
-      aws_kms_key as k
-      left join wildcard_action_policies as p on p.arn = k.arn
-    where
-      key_manager = 'CUSTOMER';
-  EOT
+  sql         = format("%s %s", replace(replace(local.resource_policy_public_sql_region, "__TABLE_NAME__", "aws_kms_key"), "__ARN_COLUMN__", "arn"), "where key_manager = 'CUSTOMER'")
 
   tags = merge(local.aws_perimeter_common_tags, {
     service = "AWS/KMS"
