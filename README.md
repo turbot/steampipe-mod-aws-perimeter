@@ -1,4 +1,4 @@
-# AWS Perimeter Tool
+# AWS Perimeter Mod for Steampipe
 
 An AWS perimeter checking tool that can be used to look for resources that are publicly accessible, shared with untrusted accounts, have insecure network configurations, and more.
 
