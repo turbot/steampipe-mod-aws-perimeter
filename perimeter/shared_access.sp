@@ -16,13 +16,20 @@ variable "trusted_organization_units" {
   description = "A list of trusted AWS organizations units (OUs) resources can be shared with."
 }
 
+variable "trusted_services" {
+  type        = list(string)
+  default     = [ "delivery.logs.amazonaws.com"]
+  description = "A list of trusted AWS services resources can be shared."
+}
+
 benchmark "shared_access" {
   title         = "Shared Access"
   description   = "Resources should only be shared with trusted entities through AWS Resource Access Manager (RAM), configurations, or resource policies."
   documentation = file("./perimeter/docs/shared_access.md")
   children = [
     benchmark.ram_shared_access,
-    benchmark.shared_access_settings
+    benchmark.shared_access_settings,
+    benchmark.resource_policy_shared_access
   ]
 
   tags = merge(local.aws_perimeter_common_tags, {
@@ -898,3 +905,88 @@ control "rds_db_snapshot_shared_with_trusted_accounts" {
     service = "AWS/RDS"
   })
 }
+
+locals {
+    resource_policy_shared_sql = <<EOT
+    select
+      r.__ARN_COLUMN__ as resource,
+      case
+        when a.access_level is not null and a.is_public then 'alarm'
+        when a.access_level is not null and a.access_level = 'shared' and (
+          jsonb_array_length(allowed_principal_account_ids - ($1)::text[]) > 0 or
+          jsonb_array_length(allowed_principal_services - ($2)::text[]) > 0 or
+          jsonb_array_length(allowed_organization_ids - ($3)::text[]) > 0
+        ) then 'alarm'
+        else ' ok '
+      end as status,
+      case
+        when a.access_level is not null and a.is_public then title || ' policy allows public access.'
+        when a.access_level is not null and a.access_level = 'shared' and (
+          jsonb_array_length(allowed_principal_account_ids - ($1)::text[]) > 0 or
+          jsonb_array_length(allowed_principal_services - ($2)::text[]) > 0 or
+          jsonb_array_length(allowed_organization_ids - ($3)::text[]) > 0
+        ) then title || ' policy allows sharing with' ||
+          CONCAT_WS(',', case when jsonb_array_length(allowed_principal_account_ids - ($1)::text[]) > 0 then ' ' || jsonb_array_length(allowed_principal_account_ids - ($1)::text[])::text || ' untrusted account(s)' end,
+          case when jsonb_array_length(allowed_principal_services - ($2)::text[]) > 0 then ' ' || jsonb_array_length(allowed_principal_services - ($2)::text[])::text || ' untrusted service(s)' end,
+          case when jsonb_array_length(allowed_organization_ids - ($3)::text[]) > 0 then ' ' || jsonb_array_length(allowed_organization_ids - ($3)::text[])::text || ' untrusted organization(s)' end) || '.'
+        else title || ' does not allow untrusted access.'
+      end as reason,
+      -- ($1)::text[] as trusted_accounts,
+      -- (allowed_principal_account_ids - ($1)::text[]) as untrusted_account,
+      -- ($2)::text[] as trusted_services,
+      -- (allowed_principal_services - ($2)::text[]) as untrusted_services,
+      -- ($3)::text[] as trusted_orgs,
+      -- (allowed_organization_ids - ($3)::text[]) as untrusted_orgs,
+      -- a.access_level,
+      -- a.is_public,
+      __DIMENSIONS__
+    from
+      __TABLE_NAME__ as r
+      left join aws_resource_policy_analysis as a on a.policy = r.policy and a.account_id = r.account_id
+    order by status
+  EOT
+}
+
+locals {
+  resource_policy_shared_sql_account  = replace(local.resource_policy_shared_sql, "__DIMENSIONS__", "r.region")
+  resource_policy_shared_sql_region  = replace(local.resource_policy_shared_sql, "__DIMENSIONS__", "r.region, r.account_id")
+}
+
+
+benchmark "resource_policy_shared_access" {
+  title         = "Resource Policy Shared Access"
+  description   = "The AWS resource config shared access is a set of controls that detect if your deployed cloud resources are shared for use by principals outside of the AWS account that created the resource. This can be configured by modifying any parameter using sharing API."
+  # documentation = file("./perimeter/docs/shared_access_settings.md")
+  children = [
+    control.s3_bucket_policy_prohibit_shared_access,
+  ]
+
+  tags = merge(local.aws_perimeter_common_tags, {
+    type = "Benchmark"
+  })
+}
+
+control "s3_bucket_policy_prohibit_shared_access" {
+  title       = "S3 bucket policies should prohibit shared access"
+  description = "Check if S3 bucket policies allow shared access."
+  sql         = replace(replace(local.resource_policy_shared_sql_region, "__TABLE_NAME__", "aws_s3_bucket"), "__ARN_COLUMN__", "arn")
+
+  param "trusted_accounts" {
+    description = "A list of trusted accounts."
+    default     = var.trusted_accounts
+  }
+
+  param "trusted_services" {
+    description = "A list of trusted services."
+    default     = var.trusted_services
+  }
+  param "trusted_organizations" {
+    description = "A list of trusted organizations."
+    default     = var.trusted_organizations
+  }
+
+  tags = merge(local.aws_perimeter_common_tags, {
+    service = "AWS/S3"
+  })
+}
+
