@@ -519,11 +519,34 @@ locals {
       __TABLE_NAME__ as r
       left join wildcard_action_policies as p on p.__ARN_COLUMN__ = r.__ARN_COLUMN__
   EOT
+
+  resource_policy_public_sql_2 = <<EOT
+    select
+      r.__ARN_COLUMN__ as resource,
+      case
+        when a.is_public is null or not a.is_public then 'ok'
+        else 'alarm'
+      end as status,
+      case
+        when a.is_public is null or not a.is_public then title || ' policy does not allow public access.'
+        else title || ' policy contains ' ||
+          case
+            when jsonb_array_length(a.public_statement_ids) > 2 then concat(a.public_statement_ids #>> '{0}', ', ', a.public_statement_ids #>> '{1}', ' and ', (jsonb_array_length(a.public_statement_ids) - 2)::text, ' more')
+            when jsonb_array_length(a.public_statement_ids) = 2 then concat(a.public_statement_ids #>> '{0}', ' and ', a.public_statement_ids #>> '{1}')
+            else concat(a.public_statement_ids #>> '{0}')
+          end || ' statement(s) that allow public access.'
+      end as reason,
+      __DIMENSIONS__
+    from
+      __TABLE_NAME__ as r
+      left join aws_resource_policy_analysis as a on a.policy = r.policy and a.account_id = r.account_id
+  EOT
 }
 
 locals {
   resource_policy_public_sql_account = replace(local.resource_policy_public_sql, "__DIMENSIONS__", "r.account_id")
   resource_policy_public_sql_region  = replace(local.resource_policy_public_sql, "__DIMENSIONS__", "r.region, r.account_id")
+  resource_policy_public_sql_region_2  = replace(local.resource_policy_public_sql_2, "__DIMENSIONS__", "r.region, r.account_id")
 }
 
 benchmark "resource_policy_public_access" {
@@ -569,7 +592,8 @@ control "lambda_function_policy_prohibit_public_access" {
 control "s3_bucket_policy_prohibit_public_access" {
   title       = "S3 bucket policies should prohibit public access"
   description = "Check if S3 bucket policies allow public access."
-  sql         = replace(replace(local.resource_policy_public_sql_region, "__TABLE_NAME__", "aws_s3_bucket"), "__ARN_COLUMN__", "arn")
+  # sql         = replace(replace(local.resource_policy_public_sql_region, "__TABLE_NAME__", "aws_s3_bucket"), "__ARN_COLUMN__", "arn")
+  sql         = replace(replace(local.resource_policy_public_sql_region_2, "__TABLE_NAME__", "aws_s3_bucket"), "__ARN_COLUMN__", "arn")
 
   tags = merge(local.aws_perimeter_common_tags, {
     service = "AWS/S3"
