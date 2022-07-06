@@ -198,3 +198,5 @@ PREPARE aws_perimeter_s3_bucket_policy_prohibit_shared_access_c4048 AS (
   order by
     status
 )
+
+-- execute aws_perimeter_s3_bucket_policy_prohibit_shared_access_c4048(array['123456781234','123456781200'], array['delivery.logs.amazonaws.com'], array['o-abcdhqk8mns','o-efghqk8pab'])
