@@ -21,6 +21,7 @@ benchmark "network_general_access" {
     control.ec2_instance_in_vpc,
     control.elb_application_lb_waf_enabled,
     control.es_domain_in_vpc,
+    control.lambda_function_in_vpc,
     control.opensearch_domain_in_vpc,
     control.rds_db_instance_in_vpc,
     control.sagemaker_model_in_vpc,
@@ -109,6 +110,34 @@ control "es_domain_in_vpc" {
 
   tags = merge(local.aws_perimeter_common_tags, {
     service = "AWS/ES"
+  })
+}
+
+control "lambda_function_in_vpc" {
+  title       = "Lambda functions should be in a VPC"
+  description = "This control checks whether Lambda functions are in a VPC. It does not evaluate the VPC subnet routing configuration to determine public access. You should ensure that Amazon Lambda functions are not attached to public subnets."
+
+  sql = <<-EOT
+    select
+      -- Required columns
+      arn as resource,
+      case
+        when vpc_id is null then 'alarm'
+        else 'ok'
+      end status,
+      case
+        when vpc_id is null then title || ' is not in VPC.'
+        else  title || ' is in VPC.'
+      end reason,
+      -- Additional dimensions
+      region,
+      account_id
+    from
+      aws_lambda_function;
+  EOT
+
+  tags = merge(local.aws_perimeter_common_tags, {
+    service = "AWS/Lambda"
   })
 }
 
