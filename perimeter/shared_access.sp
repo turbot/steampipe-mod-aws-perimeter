@@ -910,6 +910,8 @@ locals {
     resource_policy_shared_sql = <<EOT
     select
       r.__ARN_COLUMN__ as resource,
+      -- a.is_public,
+      -- a.access_level,
       case
         when a.access_level is not null and a.is_public then 'alarm'
         when a.access_level is not null and a.access_level = 'shared' and (
@@ -917,7 +919,7 @@ locals {
           jsonb_array_length(allowed_principal_services - ($2)::text[]) > 0 or
           jsonb_array_length(allowed_organization_ids - ($3)::text[]) > 0
         ) then 'alarm'
-        else ' ok '
+        else 'ok'
       end as status,
       case
         when a.access_level is not null and a.is_public then title || ' policy allows public access.'
@@ -937,8 +939,6 @@ locals {
       -- (allowed_principal_services - ($2)::text[]) as untrusted_services,
       -- ($3)::text[] as trusted_orgs,
       -- (allowed_organization_ids - ($3)::text[]) as untrusted_orgs,
-      -- a.access_level,
-      -- a.is_public,
       __DIMENSIONS__
     from
       __TABLE_NAME__ as r
