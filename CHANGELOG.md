@@ -1,5 +1,9 @@
 ## v0.2 [2022-07-15]
 
+_Dependencies_
+
+- AWS plugin `v0.70.0` or higher is now required. ([#14](https://github.com/turbot/steampipe-mod-aws-perimeter/pull/14))
+
 _What's new?_
 
 - New controls added: ([#10](https://github.com/turbot/steampipe-mod-aws-perimeter/pull/10))
