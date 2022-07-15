@@ -119,7 +119,6 @@ control "lambda_function_in_vpc" {
 
   sql = <<-EOT
     select
-      -- Required columns
       arn as resource,
       case
         when vpc_id is null then 'alarm'
@@ -127,9 +126,8 @@ control "lambda_function_in_vpc" {
       end status,
       case
         when vpc_id is null then title || ' is not in VPC.'
-        else  title || ' is in VPC.'
+        else title || ' is in VPC ' || vpc_id || '.'
       end reason,
-      -- Additional dimensions
       region,
       account_id
     from
