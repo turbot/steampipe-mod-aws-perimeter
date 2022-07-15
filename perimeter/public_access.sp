@@ -17,6 +17,7 @@ benchmark "public_access_settings" {
   description   = "Resources should not be publicly accessible or exposed to the internet through configurations and settings."
   documentation = file("./perimeter/docs/public_access_settings.md")
   children = [
+    control.api_gateway_rest_api_prohibit_public_access,
     control.dms_replication_instance_not_publicly_accessible,
     control.ebs_snapshot_not_publicly_accessible,
     control.ec2_instance_ami_prohibit_public_access,
@@ -34,6 +35,32 @@ benchmark "public_access_settings" {
 
   tags = merge(local.aws_perimeter_common_tags, {
     type = "Benchmark"
+  })
+}
+
+control "api_gateway_rest_api_prohibit_public_access" {
+  title       = "API Gateway APIs should prohibit public access"
+  description = "This control checks whether AWS API Gateway APIs are only accessible through private API endpoints and not visible to the public Internet. A private API can be accessed only privately through the interface VPC endpoint."
+
+  sql = <<-EOT
+    select
+      title as resource,
+      case
+        when endpoint_configuration_types != '["PRIVATE"]' then 'alarm'
+        else 'ok'
+      end status,
+      case
+        when endpoint_configuration_types != '["PRIVATE"]' then title || ' endpoint publicly accessible.'
+        else title || ' endpoint not publicly accessible.'
+      end reason,
+      region,
+      account_id
+    from
+      aws_api_gateway_rest_api;
+  EOT
+
+  tags = merge(local.aws_perimeter_common_tags, {
+    service = "AWS/APIGateway"
   })
 }
 
