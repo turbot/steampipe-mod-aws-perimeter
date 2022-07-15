@@ -21,6 +21,7 @@ benchmark "network_general_access" {
     control.ec2_instance_in_vpc,
     control.elb_application_lb_waf_enabled,
     control.es_domain_in_vpc,
+    control.lambda_function_in_vpc,
     control.opensearch_domain_in_vpc,
     control.rds_db_instance_in_vpc,
     control.sagemaker_model_in_vpc,
@@ -65,20 +66,28 @@ control "elb_application_lb_waf_enabled" {
   description = "Ensure AWS WAF is enabled on application load balancers to help protect web applications."
 
   sql = <<-EOT
+    with associated_resource as (
+      select 
+        arns
+      from
+        aws_wafv2_web_acl,
+        jsonb_array_elements_text(associated_resources) as arns  
+    )
     select
       arn as resource,
       case
-        when load_balancer_attributes @> '[{"Key":"waf.fail_open.enabled","Value":"true"}]' then 'ok'
+        when ar.arns is not null then 'ok'
         else 'alarm'
       end as status,
       case
-        when load_balancer_attributes @> '[{"Key":"waf.fail_open.enabled","Value":"true"}]' then title || ' WAF enabled.'
+        when ar.arns is not null then title || ' WAF enabled.'
         else title || ' WAF disabled.'
       end as reason,
       region,
       account_id
     from
-      aws_ec2_application_load_balancer;
+      aws_ec2_application_load_balancer as lb
+      left join associated_resource as ar on lb.arn = ar.arns;
   EOT
 
   tags = merge(local.aws_perimeter_common_tags, {
@@ -109,6 +118,32 @@ control "es_domain_in_vpc" {
 
   tags = merge(local.aws_perimeter_common_tags, {
     service = "AWS/ES"
+  })
+}
+
+control "lambda_function_in_vpc" {
+  title       = "Lambda functions should be in a VPC"
+  description = "This control checks whether Lambda functions are in a VPC. It does not evaluate the VPC subnet routing configuration to determine public access. You should ensure that Amazon Lambda functions are not attached to public subnets."
+
+  sql = <<-EOT
+    select
+      arn as resource,
+      case
+        when vpc_id is null then 'alarm'
+        else 'ok'
+      end status,
+      case
+        when vpc_id is null then title || ' is not in VPC.'
+        else title || ' is in VPC ' || vpc_id || '.'
+      end reason,
+      region,
+      account_id
+    from
+      aws_lambda_function;
+  EOT
+
+  tags = merge(local.aws_perimeter_common_tags, {
+    service = "AWS/Lambda"
   })
 }
 
