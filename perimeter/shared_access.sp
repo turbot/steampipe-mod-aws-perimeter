@@ -67,7 +67,6 @@ control "ram_resource_shared_with_trusted_accounts" {
     shared_data as (
       select
         (regexp_split_to_array(shared_resource, ':'))[6] as resource,
-        string_to_array(string_agg(shared_with_principal, ','), ',', '') as shared_accounts,
         to_jsonb(string_to_array(string_agg(shared_with_principal, ','), ',', '')) - ($1)::text[] as untrusted_accounts,
         region,
         account_id
@@ -134,7 +133,6 @@ control "ram_resource_shared_with_trusted_organizations" {
     shared_data as (
       select
         (regexp_split_to_array(shared_resource, ':'))[6] as resource,
-        string_to_array(string_agg(shared_with_organization, ','), ',', '') as shared_organizations,
         to_jsonb(string_to_array(string_agg(split_part(shared_with_organization, '/', 2), ','), ',', '')) - ($1)::text[] as untrusted_organizations,
         region,
         account_id
@@ -201,7 +199,6 @@ control "ram_resource_shared_with_trusted_organization_units" {
     shared_data as (
       select
         (regexp_split_to_array(shared_resource, ':'))[6] as resource,
-        string_to_array(string_agg(shared_with_organization_unit, ','), ',', '') as shared_with_organization_unit,
         to_jsonb(string_to_array(string_agg(split_part(shared_with_organization_unit, '/', 3), ','), ',', '')) - ($1)::text[] as untrusted_organizations_unit,
         region,
         account_id
