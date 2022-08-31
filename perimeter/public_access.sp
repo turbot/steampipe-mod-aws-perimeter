@@ -477,7 +477,7 @@ locals {
       __TABLE_NAME__ as r,
       aws_resource_policy_analysis as a
     where
-      a.account_id = '111122223333'
+      a.account_id = '__ACCOUNT_ID__'
       and a.policy = r.policy_std
     group by
       resource,
@@ -580,7 +580,7 @@ locals {
 
 locals {
   resource_policy_public_sql_account = replace(local.resource_policy_public_sql, "__DIMENSIONS__", "r.account_id")
-  resource_policy_public_sql_region  = replace(local.resource_policy_public_sql, "__DIMENSIONS__", "r.region, r.account_id")
+  resource_policy_public_sql_region  = replace(replace(local.resource_policy_public_sql, "__DIMENSIONS__", "r.region, r.account_id"), "__ACCOUNT_ID__", "111122223333")
 
   old_resource_policy_public_sql_account = replace(local.old_esource_policy_public_sql, "__DIMENSIONS__", "r.account_id")
   old_resource_policy_public_sql_region  = replace(local.old_esource_policy_public_sql, "__DIMENSIONS__", "r.region, r.account_id")
