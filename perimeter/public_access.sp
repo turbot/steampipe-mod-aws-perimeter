@@ -582,7 +582,30 @@ benchmark "resource_policy_public_access" {
 control "ecr_repository_policy_prohibit_public_access" {
   title       = "ECR repository policies should prohibit public access"
   description = "Check if ECR repository policies allow public access."
-  sql         = replace(replace(local.resource_policy_public_sql_region, "__TABLE_NAME__", "aws_ecr_repository"), "__ARN_COLUMN__", "arn")
+  sql = <<-EOT
+    select
+      r.arn as resource,
+      case
+        when a .is_public = true then 'alarm'
+        else 'ok'
+      end as status,
+      case
+        when a .is_public = false then title || ' policy does not allow public access.'
+        else title || ' policy contains ' || count(a .public_statement_ids) || ' statement(s) that allow public access.'
+      end as reason,
+      r.account_id
+    from
+      aws_ecr_repository as r,
+      aws_resource_policy_analysis as a
+    where
+      a .account_id = '111122223333'
+      and a .policy = r.policy_std
+    group by
+      resource,
+      a .is_public,
+      title,
+      r.account_id
+  EOT
 
   tags = merge(local.aws_perimeter_common_tags, {
     service = "AWS/ECR"
