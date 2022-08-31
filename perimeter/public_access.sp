@@ -463,94 +463,28 @@ control "s3_bucket_acl_prohibit_public_write_access" {
 locals {
   resource_policy_public_sql = <<EOT
     with wildcard_action_policies as (
-      select
-        __ARN_COLUMN__,
-        count(*) as statements_num
-      from
-        __TABLE_NAME__,
-        jsonb_array_elements(policy_std -> 'Statement') as s
-      where
-        s ->> 'Effect' = 'Allow'
-        -- aws:SourceOwner
-        and s -> 'Condition' -> 'StringEquals' -> 'aws:sourceowner' is null
-        and s -> 'Condition' -> 'StringEqualsIgnoreCase' -> 'aws:sourceowner' is null
-        and (
-          s -> 'Condition' -> 'StringLike' -> 'aws:sourceowner' is null
-          or s -> 'Condition' -> 'StringLike' -> 'aws:sourceowner' ? '*'
-        )
-        -- aws:SourceAccount
-        and s -> 'Condition' -> 'StringEquals' -> 'aws:sourceaccount' is null
-        and s -> 'Condition' -> 'StringEqualsIgnoreCase' -> 'aws:sourceaccount' is null
-        and (
-          s -> 'Condition' -> 'StringLike' -> 'aws:sourceaccount' is null
-          or s -> 'Condition' -> 'StringLike' -> 'aws:sourceaccount' ? '*'
-        )
-        -- aws:PrincipalOrgID
-        and s -> 'Condition' -> 'StringEquals' -> 'aws:principalorgid' is null
-        and s -> 'Condition' -> 'StringEqualsIgnoreCase' -> 'aws:principalorgid' is null
-        and (
-          s -> 'Condition' -> 'StringLike' -> 'aws:principalorgid' is null
-          or s -> 'Condition' -> 'StringLike' -> 'aws:principalorgid' ? '*'
-        )
-        -- aws:PrincipalAccount
-        and s -> 'Condition' -> 'StringEquals' -> 'aws:principalaccount' is null
-        and s -> 'Condition' -> 'StringEqualsIgnoreCase' -> 'aws:principalaccount' is null
-        and (
-          s -> 'Condition' -> 'StringLike' -> 'aws:principalaccount' is null
-          or s -> 'Condition' -> 'StringLike' -> 'aws:principalaccount' ? '*'
-        )
-        -- aws:PrincipalArn
-        and s -> 'Condition' -> 'StringEquals' -> 'aws:principalarn' is null
-        and s -> 'Condition' -> 'StringEqualsIgnoreCase' -> 'aws:principalarn' is null
-        and (
-          s -> 'Condition' -> 'StringLike' -> 'aws:principalarn' is null
-          or s -> 'Condition' -> 'StringLike' -> 'aws:principalarn' ? '*'
-        )
-        and (
-          s -> 'Condition' -> 'ArnEquals' -> 'aws:principalarn' is null
-          or s -> 'Condition' -> 'ArnEquals' -> 'aws:principalarn' ? '*'
-        )
-        and (
-          s -> 'Condition' -> 'ArnLike' -> 'aws:principalarn' is null
-          or s -> 'Condition' -> 'ArnLike' -> 'aws:principalarn' ? '*'
-        )
-        -- aws:SourceArn
-        and s -> 'Condition' -> 'StringEquals' -> 'aws:sourcearn' is null
-        and s -> 'Condition' -> 'StringEqualsIgnoreCase' -> 'aws:sourcearn' is null
-        and (
-          s -> 'Condition' -> 'StringLike' -> 'aws:sourcearn' is null
-          or s -> 'Condition' -> 'StringLike' -> 'aws:sourcearn' ? '*'
-        )
-        and (
-          s -> 'Condition' -> 'ArnEquals' -> 'aws:sourcearn' is null
-          or s -> 'Condition' -> 'ArnEquals' -> 'aws:sourcearn' ? '*'
-        )
-        and (
-          s -> 'Condition' -> 'ArnLike' -> 'aws:sourcearn' is null
-          or s -> 'Condition' -> 'ArnLike' -> 'aws:sourcearn' ? '*'
-        )
-        and (
-          s -> 'Principal' -> 'AWS' = '["*"]'
-          or s ->> 'Principal' = '*'
-        )
-      group by
-        __ARN_COLUMN__
-    )
-    select
-      r.__ARN_COLUMN__ as resource,
-      case
-        when p.__ARN_COLUMN__ is null then 'ok'
-        else 'alarm'
-      end as status,
-      case
-        when p.__ARN_COLUMN__ is null then title || ' policy does not allow public access.'
-        else title || ' policy contains ' || coalesce(p.statements_num, 0) ||
-        ' statement(s) that allow public access.'
-      end as reason,
-      __DIMENSIONS__
-    from
-      __TABLE_NAME__ as r
-      left join wildcard_action_policies as p on p.__ARN_COLUMN__ = r.__ARN_COLUMN__
+     select
+       r.__ARN_COLUMN__ as resource,
+       case
+         when a.is_public = true then 'alarm'
+         else 'ok'
+       end as status,
+       case
+         when a.is_public = false then title || ' policy does not allow public access.'
+         else title || ' policy contains ' || count(a.public_statement_ids) || ' statement(s) that allow public access.'
+       end as reason,
+       r.account_id
+     from
+     __TABLE_NAME__ as r,
+       aws_resource_policy_analysis as a
+     where
+       a.account_id = '111122223333'
+       and a.policy = r.policy_std
+     group by
+       resource,
+       title,
+       a.is_public,
+       r.account_id
   EOT
 }
 
@@ -582,30 +516,7 @@ benchmark "resource_policy_public_access" {
 control "ecr_repository_policy_prohibit_public_access" {
   title       = "ECR repository policies should prohibit public access"
   description = "Check if ECR repository policies allow public access."
-  sql = <<-EOT
-    select
-      r.arn as resource,
-      case
-        when a .is_public = true then 'alarm'
-        else 'ok'
-      end as status,
-      case
-        when a .is_public = false then title || ' policy does not allow public access.'
-        else title || ' policy contains ' || count(a .public_statement_ids) || ' statement(s) that allow public access.'
-      end as reason,
-      r.account_id
-    from
-      aws_ecr_repository as r,
-      aws_resource_policy_analysis as a
-    where
-      a .account_id = '111122223333'
-      and a .policy = r.policy_std
-    group by
-      resource,
-      a .is_public,
-      title,
-      r.account_id
-  EOT
+  sql         = replace(replace(local.resource_policy_public_sql_region, "__TABLE_NAME__", "aws_ecr_repository"), "__ARN_COLUMN__", "arn")
 
   tags = merge(local.aws_perimeter_common_tags, {
     service = "AWS/ECR"
