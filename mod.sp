@@ -24,7 +24,7 @@ mod "aws_perimeter" {
 
   requires {
     plugin "aws" {
-      version = "0.65.0"
+      version = "0.70.0"
     }
   }
 }
