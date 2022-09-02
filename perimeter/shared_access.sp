@@ -16,6 +16,18 @@ variable "trusted_organization_units" {
   description = "A list of trusted AWS organizations units (OUs) resources can be shared with."
 }
 
+variable "trusted_services" {
+  type        = list(string)
+  default     = ["ec2.amazonaws.com", "elasticloadbalancing.amazonaws.com"]
+  description = "A list of trusted AWS services resources can be shared with."
+}
+
+variable "trusted_identity_providers" {
+  type        = list(string)
+  default     = ["arn:aws:iam::987654321098:saml-provider/provider-name", "accounts.google.com"]
+  description = "A list of trusted AWS services resources can be shared with."
+}
+
 benchmark "shared_access" {
   title         = "Shared Access"
   description   = "Resources should only be shared with trusted entities through AWS Resource Access Manager (RAM), configurations, or resource policies."
