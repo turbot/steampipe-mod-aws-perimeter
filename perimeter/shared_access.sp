@@ -34,7 +34,11 @@ benchmark "shared_access" {
   documentation = file("./perimeter/docs/shared_access.md")
   children = [
     benchmark.ram_shared_access,
-    benchmark.shared_access_settings
+    benchmark.shared_access_settings,
+    benchmark.resource_policy_shared_accounts_access,
+    benchmark.resource_policy_shared_organizations_access,
+    benchmark.resource_policy_shared_services_access,
+    benchmark.resource_policy_shared_identity_providers_access,
   ]
 
   tags = merge(local.aws_perimeter_common_tags, {

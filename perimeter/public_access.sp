@@ -470,7 +470,7 @@ locals {
       end as status,
       case
         when pa.is_public = false then title || ' policy does not allow public access.'
-        else title || ' policy contains ' || count(a.public_statement_ids) || ' statement(s) that allow public access.'
+        else title || ' policy contains ' || count(pa.public_statement_ids) || ' statement(s) that allow public access.'
       end as reason,
       __DIMENSIONS__
     from
