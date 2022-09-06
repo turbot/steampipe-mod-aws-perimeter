@@ -10,10 +10,10 @@ This benchmark defines shared as a policy having at least one `Allow` statement 
   "Statement": [
     {
       "Effect": "Allow",
-      "Action": "sts:AssumeRole",
       "Principal": {
         "Federated": "arn:aws:iam::AWS-account-ID:saml-provider-1/provider-name"
       },
+      "Action": ["s3:PutObject", "s3:PutObjectAcl"],
       "Resource": "*"
     }
   ]

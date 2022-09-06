@@ -21,6 +21,28 @@ This benchmark defines shared as a policy having at least one `Allow` statement 
 }
 ```
 
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowPublicAccess1",
+      "Effect": "Allow",
+      "Principal": {
+        "Service": "ec2.amazonaws.com"
+      },
+      "Action": ["s3:PutObject", "s3:PutObjectAcl"],
+      "Resource": "arn:aws:s3:::EXAMPLE-BUCKET/*",
+      "Condition": {
+        "StringEquals": {
+          "aws:SourceOwner": ["111122223333"]
+        }
+      }
+    }
+  ]
+}
+```
+
 When evaluating statements for shared access, the following [condition keys](https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_condition-keys.html) are checked:
 
 - `aws:PrincipalAccount`
