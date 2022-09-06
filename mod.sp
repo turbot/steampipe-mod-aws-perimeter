@@ -9,7 +9,7 @@ locals {
 
 mod "aws_perimeter" {
   # hub metadata
-  title = "AWS Perimeter"
+  title         = "AWS Perimeter"
   description   = "Run security controls across all your AWS accounts to look for resources that are publicly accessible, shared with untrusted accounts, have insecure network configurations, and more across all your AWS accounts using Steampipe."
   color         = "#FF9900"
   documentation = file("./docs/index.md")
@@ -18,13 +18,13 @@ mod "aws_perimeter" {
 
   opengraph {
     title       = "Steampipe Mod for AWS Perimeter"
-  description   = "Run security controls across all your AWS accounts to look for resources that are publicly accessible, shared with untrusted accounts, have insecure network configurations, and more across all your AWS accounts using Steampipe."
+    description = "Run security controls across all your AWS accounts to look for resources that are publicly accessible, shared with untrusted accounts, have insecure network configurations, and more across all your AWS accounts using Steampipe."
     image       = "/images/mods/turbot/aws-perimeter-social-graphic.png"
   }
 
-  # requires {
-  #   plugin "aws" {
-  #     version = "0.70.0"
-  #   }
-  # }
+  requires {
+    plugin "aws" {
+      version = "0.70.0"
+    }
+  }
 }
