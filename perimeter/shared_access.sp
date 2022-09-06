@@ -927,7 +927,7 @@ locals {
         when jsonb_array_length(pa.allowed_principal_account_ids) = 0 then title || ' trust policy does not reference any accounts.'
         when pa.access_level = 'private' then title || ' trust policy does not reference any cross accounts.'
         when pa.access_level = 'public' then title || ' trust policy allows access to all AWS accounts.'
-        when pa.allowed_principal_account_ids <@ to_jsonb(($1)::text[]) then title || ' trust policy allows cross account access to trusted accounts.'
+        when pa.allowed_principal_account_ids <@ to_jsonb(($1)::text[]) then title || ' trust policy grants cross-account access to trusted accounts.'
         else title || ' trust policy contains ' || count(pa.shared_statement_ids) || ' statement(s) that allows cross account access to untrusted accounts.'
       end as reason,
       __DIMENSIONS__
