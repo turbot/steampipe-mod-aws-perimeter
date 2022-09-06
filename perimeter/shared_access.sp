@@ -953,7 +953,7 @@ benchmark "resource_policy_shared_account_access" {
   title       = "Resource Policy Shared Account Access"
   description = "Resources should not be accessible to untrusted accounts through statements in their resource policies."
   # TODO: Finish this
-  documentation = file("./perimeter/docs/resource_policy_public_access.md")
+  documentation = file("./perimeter/docs/resource_policy_shared_account_access.md")
   children = [
     control.ecr_repository_policy_prohibits_untrusted_account_access,
     control.glacier_vault_policy_prohibits_untrusted_account_access,
@@ -971,8 +971,8 @@ benchmark "resource_policy_shared_account_access" {
 }
 
 control "ecr_repository_policy_prohibits_untrusted_account_access" {
-  title       = "ECR repository policies should prohibit public access"
-  description = "Check if ECR repository policies allow public access."
+  title       = "ECR repository policies should prohibit untrusted account access"
+  description = "Check if ECR repository policies allows access to untrusted accounts"
   sql         = replace(replace(local.resource_policy_shared_account_sql_region, "__TABLE_NAME__", "aws_ecr_repository"), "__ARN_COLUMN__", "arn")
 
   param "trusted_accounts" {
@@ -986,8 +986,8 @@ control "ecr_repository_policy_prohibits_untrusted_account_access" {
 }
 
 control "glacier_vault_policy_prohibits_untrusted_account_access" {
-  title       = "Glacier vault policies should prohibit public access"
-  description = "Check if Glacier vault policies allow public access."
+  title       = "Glacier vault policies should prohibit untrusted account access"
+  description = "Check if Glacier vault policies allows access to untrusted accounts"
   sql         = replace(replace(local.resource_policy_shared_account_sql_region, "__TABLE_NAME__", "aws_glacier_vault"), "__ARN_COLUMN__", "vault_arn")
 
   param "trusted_accounts" {
@@ -1001,8 +1001,8 @@ control "glacier_vault_policy_prohibits_untrusted_account_access" {
 }
 
 control "iam_role_trust_policy_prohibits_untrusted_account_access" {
-  title       = "IAM role trust policies should prohibit public access"
-  description = "Check if IAM role trust policies provide public access, allowing any principal to assume the role."
+  title       = "IAM role trust policies should prohibit untrusted account access"
+  description = "Check if IAM role trust policies provide access to untrusted accounts, allowing untrusted accounts to assume the role."
   sql         = replace(replace(local.resource_policy_shared_account_sql_account, "__TABLE_NAME__", "aws_iam_role"), "__ARN_COLUMN__", "arn")
 
   param "trusted_accounts" {
@@ -1016,8 +1016,8 @@ control "iam_role_trust_policy_prohibits_untrusted_account_access" {
 }
 
 control "kms_key_policy_prohibits_untrusted_account_access" {
-  title       = "KMS key policies should prohibit public access"
-  description = "Check if KMS key policies allow public access."
+  title       = "KMS key policies should prohibit untrusted account access"
+  description = "Check if KMS key policies allows access to untrusted accounts"
   sql         = replace(replace(replace(local.resource_policy_shared_account_sql_kms, "__TABLE_NAME__", "aws_kms_key"), "__ARN_COLUMN__", "arn"), "__CRITERIA__", "and key_manager = 'CUSTOMER'")
 
   param "trusted_accounts" {
@@ -1031,8 +1031,8 @@ control "kms_key_policy_prohibits_untrusted_account_access" {
 }
 
 control "lambda_function_policy_prohibits_untrusted_account_access" {
-  title       = "Lambda function policies should prohibit public access"
-  description = "Check if Lambda function policies allow public access."
+  title       = "Lambda function policies should prohibit untrusted account access"
+  description = "Check if Lambda function policies allows access to untrusted accounts"
   sql         = replace(replace(local.resource_policy_shared_account_sql_region, "__TABLE_NAME__", "aws_lambda_function"), "__ARN_COLUMN__", "arn")
 
   param "trusted_accounts" {
@@ -1046,8 +1046,8 @@ control "lambda_function_policy_prohibits_untrusted_account_access" {
 }
 
 control "s3_bucket_policy_prohibits_untrusted_account_access" {
-  title       = "S3 bucket policies should prohibit trusted cross account access"
-  description = "Check if S3 bucket policies allow trusted cross account access."
+  title       = "S3 bucket policies should prohibit untrusted account access"
+  description = "Check if S3 bucket policies allows access to untrusted accounts"
   sql         = replace(replace(local.resource_policy_shared_account_sql_region, "__TABLE_NAME__", "aws_s3_bucket"), "__ARN_COLUMN__", "arn")
 
   param "trusted_accounts" {
@@ -1061,8 +1061,8 @@ control "s3_bucket_policy_prohibits_untrusted_account_access" {
 }
 
 control "sns_topic_policy_prohibits_untrusted_account_access" {
-  title       = "SNS topic policies should prohibit public access"
-  description = "Check if SNS topic policies allow public access."
+  title       = "SNS topic policies should prohibit untrusted account access"
+  description = "Check if SNS topic policies allows access to untrusted accounts"
   sql         = replace(replace(local.resource_policy_shared_account_sql_region, "__TABLE_NAME__", "aws_sns_topic"), "__ARN_COLUMN__", "topic_arn")
 
   param "trusted_accounts" {
@@ -1076,13 +1076,234 @@ control "sns_topic_policy_prohibits_untrusted_account_access" {
 }
 
 control "sqs_queue_policy_prohibits_untrusted_account_access" {
-  title       = "SQS queue policies should prohibit public access"
-  description = "Check if SQS queue policies allow public access."
+  title       = "SQS queue policies should prohibit untrusted account access"
+  description = "Check if SQS queue policies allows access to untrusted accounts"
   sql         = replace(replace(local.resource_policy_shared_account_sql_region, "__TABLE_NAME__", "aws_sqs_queue"), "__ARN_COLUMN__", "queue_arn")
 
   param "trusted_accounts" {
     description = "A list of trusted accounts."
     default     = var.trusted_accounts
+  }
+
+  tags = merge(local.aws_perimeter_common_tags, {
+    service = "AWS/SQS"
+  })
+}
+
+locals {
+  resource_policy_shared_organization_sql = <<-EOT
+    select
+      r.__ARN_COLUMN__ as resource,
+      case
+        when pa.access_level = 'public' then 'alarm'
+        when pa.access_level = 'shared' then 'ok'
+        when pa.access_level = 'private' then 'ok'
+        when pa.allowed_organization_ids <@ to_jsonb(($1)::text[]) then 'ok'
+        else 'alarm'
+      end as status,
+      case
+        when pa.access_level = 'public' then title || ' trust policy allows access to all AWS accounts.'
+        when pa.access_level = 'shared' then title || ' trust policy contains ' || count(pa.shared_statement_ids) || ' statement(s) that allows cross account access to trusted accounts.'
+        when pa.access_level = 'private' then title || ' has no cross account access.'
+        when pa.allowed_organization_ids <@ to_jsonb(($1)::text[] || ($2)::text[]) then title || ' trust policy allows cross account access to trusted accounts.'
+        else title || ' trust policy contains ' || count(pa.shared_statement_ids) || ' statement(s) that allows cross account access to untrusted accounts.'
+      end as reason,
+      __DIMENSIONS__
+    from
+      __TABLE_NAME__ as r,
+      aws_resource_policy_analysis as pa
+    where
+      pa.account_id = r.account_id
+      __CRITERIA__
+    group by
+      resource,
+      title,
+      pa.is_public,
+      pa.allowed_organization_ids,
+      pa.access_level,
+      __DIMENSIONS__
+  EOT
+}
+
+locals {
+  resource_policy_shared_organization_sql_account = replace(replace(local.resource_policy_shared_organization_sql, "__DIMENSIONS__", "r.account_id"), "__CRITERIA__", "and pa.policy = r.assume_role_policy_std")
+  resource_policy_shared_organization_sql_region  = replace(replace(local.resource_policy_shared_organization_sql, "__DIMENSIONS__", "r.region, r.account_id"), "__CRITERIA__", "and pa.policy = r.policy_std")
+  resource_policy_shared_organization_sql_kms     = replace(replace(local.resource_policy_shared_organization_sql, "__DIMENSIONS__", "r.region, r.account_id"), "__CRITERIA__", "and pa.policy = r.policy_std and key_manager = 'CUSTOMER'")
+}
+
+benchmark "resource_policy_shared_organizations_access" {
+  title         = "Resource Policy Shared Organization Access"
+  description   = "Resources should not be accessible to untrusted organizations through statements in their resource policies."
+  documentation = file("./perimeter/docs/resource_policy_shared_organizations_access.md")
+  children = [
+    control.ecr_repository_policy_prohibits_untrusted_organizations_access,
+    control.glacier_vault_policy_prohibits_untrusted_organizations_access,
+    control.iam_role_trust_policy_prohibits_untrusted_organizations_access,
+    control.kms_key_policy_prohibits_untrusted_organizations_access,
+    control.lambda_function_policy_prohibits_untrusted_organizations_access,
+    control.s3_bucket_policy_prohibits_untrusted_organizations_access,
+    control.sns_topic_policy_prohibits_untrusted_organizations_access,
+    control.sqs_queue_policy_prohibits_untrusted_organizations_access
+  ]
+
+  tags = merge(local.aws_perimeter_common_tags, {
+    type = "Benchmark"
+  })
+}
+
+control "ecr_repository_policy_prohibits_untrusted_organizations_access" {
+  title       = "ECR repository policies should prohibit untrusted organization access"
+  description = "Check if ECR repository policies allows access to untrusted organizations"
+  sql         = replace(replace(local.resource_policy_shared_organization_sql_region, "__TABLE_NAME__", "aws_ecr_repository"), "__ARN_COLUMN__", "arn")
+
+  param "trusted_organizations" {
+    description = "A list of trusted organizations."
+    default     = var.trusted_organizations
+  }
+
+  param "trusted_organization_units" {
+    description = "A list of trusted organizations unit."
+    default     = var.trusted_organization_units
+  }
+
+  tags = merge(local.aws_perimeter_common_tags, {
+    service = "AWS/ECR"
+  })
+}
+
+control "glacier_vault_policy_prohibits_untrusted_organizations_access" {
+  title       = "Glacier vault policies should prohibit untrusted organization access"
+  description = "Check if Glacier vault policies allows access to untrusted organizations"
+  sql         = replace(replace(local.resource_policy_shared_organization_sql_region, "__TABLE_NAME__", "aws_glacier_vault"), "__ARN_COLUMN__", "vault_arn")
+
+  param "trusted_organizations" {
+    description = "A list of trusted organizations."
+    default     = var.trusted_organizations
+  }
+
+  param "trusted_organization_units" {
+    description = "A list of trusted organizations unit."
+    default     = var.trusted_organization_units
+  }
+
+  tags = merge(local.aws_perimeter_common_tags, {
+    service = "AWS/Glacier"
+  })
+}
+
+control "iam_role_trust_policy_prohibits_untrusted_organizations_access" {
+  title       = "IAM role trust policies should prohibit untrusted organization access"
+  description = "Check if IAM role trust policies provide access to untrusted organizations, allowing untrusted organizations to assume the role."
+  sql         = replace(replace(local.resource_policy_shared_organization_sql_account, "__TABLE_NAME__", "aws_iam_role"), "__ARN_COLUMN__", "arn")
+
+  param "trusted_organizations" {
+    description = "A list of trusted organizations."
+    default     = var.trusted_organizations
+  }
+
+  param "trusted_organization_units" {
+    description = "A list of trusted organizations unit."
+    default     = var.trusted_organization_units
+  }
+
+  tags = merge(local.aws_perimeter_common_tags, {
+    service = "AWS/IAM"
+  })
+}
+
+control "kms_key_policy_prohibits_untrusted_organizations_access" {
+  title       = "KMS key policies should prohibit untrusted organization access"
+  description = "Check if KMS key policies allows access to untrusted organizations"
+  sql         = replace(replace(replace(local.resource_policy_shared_organization_sql_kms, "__TABLE_NAME__", "aws_kms_key"), "__ARN_COLUMN__", "arn"), "__CRITERIA__", "and key_manager = 'CUSTOMER'")
+
+  param "trusted_organizations" {
+    description = "A list of trusted organizations."
+    default     = var.trusted_organizations
+  }
+
+  param "trusted_organization_units" {
+    description = "A list of trusted organizations unit."
+    default     = var.trusted_organization_units
+  }
+
+  tags = merge(local.aws_perimeter_common_tags, {
+    service = "AWS/KMS"
+  })
+}
+
+control "lambda_function_policy_prohibits_untrusted_organizations_access" {
+  title       = "Lambda function policies should prohibit untrusted organization access"
+  description = "Check if Lambda function policies allows access to untrusted organizations"
+  sql         = replace(replace(local.resource_policy_shared_organization_sql_region, "__TABLE_NAME__", "aws_lambda_function"), "__ARN_COLUMN__", "arn")
+
+  param "trusted_organizations" {
+    description = "A list of trusted organizations."
+    default     = var.trusted_organizations
+  }
+
+  param "trusted_organization_units" {
+    description = "A list of trusted organizations unit."
+    default     = var.trusted_organization_units
+  }
+
+  tags = merge(local.aws_perimeter_common_tags, {
+    service = "AWS/Lambda"
+  })
+}
+
+control "s3_bucket_policy_prohibits_untrusted_organizations_access" {
+  title       = "S3 bucket policies should prohibit untrusted organization access"
+  description = "Check if S3 bucket policies allows access to untrusted organizations"
+  sql         = replace(replace(local.resource_policy_shared_organization_sql_region, "__TABLE_NAME__", "aws_s3_bucket"), "__ARN_COLUMN__", "arn")
+
+  param "trusted_organizations" {
+    description = "A list of trusted organizations."
+    default     = var.trusted_organizations
+  }
+
+  param "trusted_organization_units" {
+    description = "A list of trusted organizations unit."
+    default     = var.trusted_organization_units
+  }
+
+  tags = merge(local.aws_perimeter_common_tags, {
+    service = "AWS/S3"
+  })
+}
+
+control "sns_topic_policy_prohibits_untrusted_organizations_access" {
+  title       = "SNS topic policies should prohibit untrusted organization access"
+  description = "Check if SNS topic policies allows access to untrusted organizations"
+  sql         = replace(replace(local.resource_policy_shared_organization_sql_region, "__TABLE_NAME__", "aws_sns_topic"), "__ARN_COLUMN__", "topic_arn")
+
+  param "trusted_organizations" {
+    description = "A list of trusted organizations."
+    default     = var.trusted_organizations
+  }
+
+  param "trusted_organization_units" {
+    description = "A list of trusted organizations unit."
+    default     = var.trusted_organization_units
+  }
+
+  tags = merge(local.aws_perimeter_common_tags, {
+    service = "AWS/SNS"
+  })
+}
+
+control "sqs_queue_policy_prohibits_untrusted_organizations_access" {
+  title       = "SQS queue policies should prohibit untrusted organization access"
+  description = "Check if SQS queue policies allows access to untrusted organizations"
+  sql         = replace(replace(local.resource_policy_shared_organization_sql_region, "__TABLE_NAME__", "aws_sqs_queue"), "__ARN_COLUMN__", "queue_arn")
+
+  param "trusted_organizations" {
+    description = "A list of trusted organizations."
+    default     = var.trusted_organizations
+  }
+
+  param "trusted_organization_units" {
+    description = "A list of trusted organizations unit."
+    default     = var.trusted_organization_units
   }
 
   tags = merge(local.aws_perimeter_common_tags, {

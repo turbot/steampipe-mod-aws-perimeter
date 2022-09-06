@@ -1,6 +1,6 @@
 This benchmark answers the following questions:
 
-- What resources have resource policies that allow public access?
+- What resources have resource policies that allow untrusted cross account access?
 
 This benchmark defines public as a policy having at least one `Allow` statement that grants one or more permission to the `*` principal, e.g.,
 
