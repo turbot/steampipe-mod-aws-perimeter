@@ -2,7 +2,7 @@ This benchmark answers the following questions:
 
 - What resources have resource policies that allow untrusted cross account access?
 
-This benchmark defines shared as a policy having at least one `Allow` statement that grants one or more permission to an account or arn principal, e.g.,
+This benchmark defines shared as a policy having at least one `Allow` statement that grants one or more permissions to trusted accounts, e.g.,
 
 ```json
 {
@@ -29,7 +29,7 @@ This benchmark defines shared as a policy having at least one `Allow` statement 
       "Sid": "AllowPublicAccess2",
       "Effect": "Allow",
       "Principal": {
-        "AWS": "arn:aws:iam::444455554444:root"
+        "AWS": "arn:aws:iam::111122223333:root"
       },
       "Action": ["s3:PutObject", "s3:PutObjectAcl"],
       "Resource": "arn:aws:s3:::EXAMPLE-BUCKET/*"
