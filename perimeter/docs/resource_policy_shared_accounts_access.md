@@ -2,7 +2,7 @@ This benchmark answers the following questions:
 
 - What resources have resource policies that allow untrusted cross account access?
 
-This benchmark defines public as a policy having at least one `Allow` statement that grants one or more permission to the `*` principal, e.g.,
+This benchmark defines shared as a policy having at least one `Allow` statement that grants one or more permission to an account or arn principal, e.g.,
 
 ```json
 {
@@ -12,7 +12,7 @@ This benchmark defines public as a policy having at least one `Allow` statement 
       "Sid": "AllowPublicAccess1",
       "Effect": "Allow",
       "Principal": {
-        "AWS": "*"
+        "AWS": "111122223333"
       },
       "Action": ["s3:PutObject", "s3:PutObjectAcl"],
       "Resource": "arn:aws:s3:::EXAMPLE-BUCKET/*"
@@ -28,7 +28,9 @@ This benchmark defines public as a policy having at least one `Allow` statement 
     {
       "Sid": "AllowPublicAccess2",
       "Effect": "Allow",
-      "Principal": "*",
+      "Principal": {
+        "AWS": "arn:aws:iam::444455554444:root"
+      },
       "Action": ["s3:PutObject", "s3:PutObjectAcl"],
       "Resource": "arn:aws:s3:::EXAMPLE-BUCKET/*"
     }
@@ -36,7 +38,7 @@ This benchmark defines public as a policy having at least one `Allow` statement 
 }
 ```
 
-When evaluating statements for public access, the following [condition keys](https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_condition-keys.html) are checked:
+When evaluating statements for shared access, the following [condition keys](https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_condition-keys.html) are checked:
 
 - `aws:PrincipalAccount`
 - `aws:PrincipalArn`
@@ -53,6 +55,14 @@ And the following [condition operators](https://docs.aws.amazon.com/IAM/latest/U
 - `StringEqualsIgnoreCase`
 - `StringLike`
 
-For each statement, if there are any condition keys with any of the condition operators present then the statement is not considered to be granting public access. An extra check is performed for the `ArnLike` and `StringLike` operators to ensure that the condition key values do not contain `*`.
+For each statement, if there are any condition keys then these condition keys will be evaluated as follows:
 
-The inverse condition operators, like `StringNotEquals` and `ArnNotLike`, are not currently evaluated.
+Principals conditions are checked against the Policy Principals.
+If Principals conditions have smaller scope that the Policy Principals then the analyzer will reduce the scopeage.
+If Principals conditions have larger scope that the Policy Principals then the analyzer will leave the Policy Principals unchanged.
+If Principals conditions have a scope that doesn't contain the the Policy Principals then the analyzer will return this as invalid.
+
+Source conditions are used to reduce AWS services, which are public in nature, to limit their scopeage to specified Principals.
+The policy analyser will use these conditions to determine if the service is public and has no valid Source conditions or shared where valid Source conditions exist.
+
+Inverse condition operators, like `StringNotEquals` and `ArnNotLike`, are not currently evaluated.
