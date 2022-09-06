@@ -465,33 +465,32 @@ locals {
     select
       r.__ARN_COLUMN__ as resource,
       case
-        when a.is_public = true then 'alarm'
+        when pa.is_public = true then 'alarm'
         else 'ok'
       end as status,
       case
-        when a.is_public = false then title || ' policy does not allow public access.'
+        when pa.is_public = false then title || ' policy does not allow public access.'
         else title || ' policy contains ' || count(a.public_statement_ids) || ' statement(s) that allow public access.'
       end as reason,
       __DIMENSIONS__
     from
       __TABLE_NAME__ as r,
-      aws_resource_policy_analysis as a
+      aws_resource_policy_analysis as pa
     where
-      a.account_id = r.account_id
-      and a.policy = r.policy_std
+      pa.account_id = r.account_id
       __CRITERIA__
     group by
       resource,
       title,
-      a.is_public,
+      pa.is_public,
       __DIMENSIONS__
   EOT
 }
 
 locals {
-  resource_policy_public_sql_account              = replace(local.resource_policy_public_sql, "__DIMENSIONS__", "r.account_id")
-  resource_policy_public_sql_region               = replace(replace(local.resource_policy_public_sql, "__DIMENSIONS__", "r.region, r.account_id"), "__CRITERIA__", "")
-  resource_policy_public_sql_region_with_criteria = replace(local.resource_policy_public_sql, "__DIMENSIONS__", "r.region, r.account_id")
+  resource_policy_public_sql_account = replace(replace(local.resource_policy_public_sql, "__DIMENSIONS__", "r.account_id"), "__CRITERIA__", "and pa.policy = r.assume_role_policy_std")
+  resource_policy_public_sql_region  = replace(replace(local.resource_policy_public_sql, "__DIMENSIONS__", "r.region, r.account_id"), "__CRITERIA__", "and pa.policy = r.policy_std")
+  resource_policy_public_sql_for_kms = replace(replace(local.resource_policy_public_sql, "__DIMENSIONS__", "r.region, r.account_id"), "__CRITERIA__", "and pa.policy = r.policy_std and key_manager = 'CUSTOMER'")
 }
 
 benchmark "resource_policy_public_access" {
@@ -521,6 +520,36 @@ control "ecr_repository_policy_prohibit_public_access" {
 
   tags = merge(local.aws_perimeter_common_tags, {
     service = "AWS/ECR"
+  })
+}
+
+control "glacier_vault_policy_prohibit_public_access" {
+  title       = "Glacier vault policies should prohibit public access"
+  description = "Check if Glacier vault policies allow public access."
+  sql         = replace(replace(local.resource_policy_public_sql_region, "__TABLE_NAME__", "aws_glacier_vault"), "__ARN_COLUMN__", "vault_arn")
+
+  tags = merge(local.aws_perimeter_common_tags, {
+    service = "AWS/Glacier"
+  })
+}
+
+control "iam_role_trust_policy_prohibit_public_access" {
+  title       = "IAM role trust policies should prohibit public access"
+  description = "Check if IAM role trust policies provide public access, allowing any principal to assume the role."
+  sql         = replace(replace(local.resource_policy_public_sql_account, "__TABLE_NAME__", "aws_iam_role"), "__ARN_COLUMN__", "arn")
+
+  tags = merge(local.aws_perimeter_common_tags, {
+    service = "AWS/IAM"
+  })
+}
+
+control "kms_key_policy_prohibit_public_access" {
+  title       = "KMS key policies should prohibit public access"
+  description = "Check if KMS key policies allow public access."
+  sql         = replace(replace(local.resource_policy_public_sql_for_kms, "__TABLE_NAME__", "aws_kms_key"), "__ARN_COLUMN__", "arn")
+
+  tags = merge(local.aws_perimeter_common_tags, {
+    service = "AWS/KMS"
   })
 }
 
@@ -561,59 +590,5 @@ control "sqs_queue_policy_prohibit_public_access" {
 
   tags = merge(local.aws_perimeter_common_tags, {
     service = "AWS/SQS"
-  })
-}
-
-control "glacier_vault_policy_prohibit_public_access" {
-  title       = "Glacier vault policies should prohibit public access"
-  description = "Check if Glacier vault policies allow public access."
-  sql         = replace(replace(local.resource_policy_public_sql_region, "__TABLE_NAME__", "aws_glacier_vault"), "__ARN_COLUMN__", "vault_arn")
-
-  tags = merge(local.aws_perimeter_common_tags, {
-    service = "AWS/Glacier"
-  })
-}
-
-control "iam_role_trust_policy_prohibit_public_access" {
-  title       = "IAM role trust policies should prohibit public access"
-  description = "Check if IAM role trust policies provide public access, allowing any principal to assume the role."
-
-  sql = <<-EOT
-    select
-      r.arn as resource,
-      case
-        when p.is_public = true then 'alarm'
-        else 'ok'
-      end as status,
-      case
-        when p.is_public = false then title || ' trust policy does not allow public access.'
-        else title || ' trust policy contains ' || count(p.public_statement_ids) || ' statement(s) that allow public access.'
-      end as reason,
-      r.account_id
-    from
-      aws_iam_role as r,
-      aws_resource_policy_analysis as p
-    where
-      p.account_id = r.account_id
-      and p.policy = r.assume_role_policy_std
-    group by
-      resource,
-      title,
-      p.is_public,
-      r.account_id
-  EOT
-
-  tags = merge(local.aws_perimeter_common_tags, {
-    service = "AWS/IAM"
-  })
-}
-
-control "kms_key_policy_prohibit_public_access" {
-  title       = "KMS key policies should prohibit public access"
-  description = "Check if KMS key policies allow public access."
-  sql         = replace(replace(replace(local.resource_policy_public_sql_region_with_criteria, "__TABLE_NAME__", "aws_kms_key"), "__ARN_COLUMN__", "arn"), "__CRITERIA__", "and key_manager = 'CUSTOMER'")
-
-  tags = merge(local.aws_perimeter_common_tags, {
-    service = "AWS/KMS"
   })
 }
