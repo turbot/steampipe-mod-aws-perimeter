@@ -22,9 +22,9 @@ mod "aws_perimeter" {
     image       = "/images/mods/turbot/aws-perimeter-social-graphic.png"
   }
 
-  requires {
-    plugin "aws" {
-      version = "0.70.0"
-    }
-  }
+  # requires {
+  #   plugin "aws" {
+  #     version = "0.70.0"
+  #   }
+  # }
 }

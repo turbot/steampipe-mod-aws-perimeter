@@ -1,6 +1,6 @@
 This benchmark answers the following questions:
 
-- What resources have resource policies that allow untrusted cross account access?
+- What resources have resource policies that allow untrusted identity providers access?
 
 This benchmark defines shared as a policy having at least one `Allow` statement that grants one or more permissions to trusted identity providers, e.g.,
 
