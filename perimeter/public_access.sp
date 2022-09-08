@@ -470,7 +470,30 @@ locals {
       end as status,
       case
         when pa.is_public = false then title || ' policy does not allow public access.'
-        else title || ' policy contains ' || count(pa.public_statement_ids) || ' statement(s) that allow public access.'
+        when count(pa.public_statement_ids) = 1 then concat(
+          title,
+          ' policy contains 1 statement that allow public access: [',
+          pa.public_statement_ids ->> 0,
+          '].'
+        )
+        when count(pa.public_statement_ids) = 2 then concat(
+          title,
+          ' policy contains 1 statement that allow public access: [',
+          pa.public_statement_ids ->> 0,
+          ', ',
+          pa.public_statement_ids ->> 1,
+          '].'
+        )
+        else concat(
+          title,
+          ' policy contains 1 statement that allow public access: [',
+          pa.public_statement_ids ->> 0,
+          ', ',
+          pa.public_statement_ids ->> 1,
+          ', and ',
+          jsonb_array_length(pa.public_statement_ids) - 2,
+          'more].'
+        )
       end as reason,
       __DIMENSIONS__
     from
@@ -483,6 +506,7 @@ locals {
       resource,
       title,
       pa.is_public,
+      pa.public_statement_ids,
       __DIMENSIONS__
   EOT
 }
