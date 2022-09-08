@@ -1,8 +1,13 @@
 This benchmark answers the following questions:
 
-- What resources have resource policies that allow untrusted organizations access?
+- What resources have resource policies that grant access to AWS organizations?
+- Which organizations have been granted access are not trusted?
 
-This benchmark defines shared as a policy having at least one `Allow` statement that grants one or more permissions to trusted organizations, e.g.,
+This benchmark defines shared as a policy having at least one `Allow` statement that grants one or more permission to a principal.
+The benchmark exposes the variable `trusted_organizations` which can be used to set which organizations are trusted.
+The benchmark will use the variable `trusted_organizations` to check if the organizations that are granted access by the policy are trusted organizations and alarm if they are untrusted.
+
+For example:
 
 ```json
 {
@@ -12,28 +17,29 @@ This benchmark defines shared as a policy having at least one `Allow` statement 
       "Sid": "AllowPublicAccess1",
       "Effect": "Allow",
       "Principal": {
-        "AWS": "111122223333"
-      },
-      "Condition": {
-        "StringEquals": {
-          "aws:PrincipalOrgID": ["o-valid"]
-        }
+        "AWS": "111122221111"
       },
       "Action": ["s3:PutObject", "s3:PutObjectAcl"],
-      "Resource": "arn:aws:s3:::EXAMPLE-BUCKET/*"
+      "Resource": "arn:aws:s3:::EXAMPLE-BUCKET/*",
+      "Condition": {
+        "StringEquals": {
+          "aws:PrincipalOrgID": ["o-12341234"]
+        }
+      }
     }
   ]
 }
 ```
 
-When evaluating statements for shared access, the following [condition keys](https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_condition-keys.html) are checked:
+The above policy grants access to account `111122221111` provided the account is part of the organization `o-12341234`.
+If `o-12341234` is a trusted organization, the benchmark will report that access has been granted to the organization and that it is trusted.
+Otherwise, the benchmark will alarm and report that organization `o-12341234` is untrusted.
+
+When evaluating statements for public access, the following [condition keys](https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_condition-keys.html) are checked:
 
 - `aws:PrincipalAccount`
 - `aws:PrincipalArn`
 - `aws:PrincipalOrgID`
-- `aws:SourceAccount`
-- `aws:SourceArn`
-- `aws:SourceOwner`
 
 And the following [condition operators](https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_elements_condition_operators.html) are checked:
 
@@ -43,14 +49,36 @@ And the following [condition operators](https://docs.aws.amazon.com/IAM/latest/U
 - `StringEqualsIgnoreCase`
 - `StringLike`
 
+Inverse condition operators, like `StringNotEquals` and `ArnNotLike`, are not currently evaluated.
+
 For each statement, if there are any condition keys then these condition keys will be evaluated as follows:
 
-Principals conditions are checked against the Policy Principals.
-If Principals conditions have smaller scope that the Policy Principals then the analyzer will reduce the scopeage.
-If Principals conditions have larger scope that the Policy Principals then the analyzer will leave the Policy Principals unchanged.
-If Principals conditions have a scope that doesn't contain the the Policy Principals then the analyzer will return this as invalid.
+The benchmark uses principals conditions, `aws:PrincipalAccount`, `aws:PrincipalArn` or `PrincipalOrgID` in its evaulation of the policy by checking the values in the principals conditions against the values set by the Principal element of the policy.
 
-Source conditions are used to reduce AWS services, which are public in nature, to limit their scopeage to specified Principals.
-The policy analyser will use these conditions to determine if the service is public and has no valid Source conditions or shared where valid Source conditions exist.
+If there is a condition reduces the number of principals that allow access to a resource, the benchmark will calculate the reduced scope and use this value when running the benchmark controls.
 
-Inverse condition operators, like `StringNotEquals` and `ArnNotLike`, are not currently evaluated.
+The following example policy restricts access to account `111122223333` and organization `o-12341234`.
+The benchmark will use the value to test if the organization is a trusted organization:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowPublicAccess1",
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "arn:aws:iam::111122223333:user/user_name"
+      },
+      "Action": ["s3:PutObject", "s3:PutObjectAcl"],
+      "Resource": "arn:aws:s3:::EXAMPLE-BUCKET/*",
+      "Condition": {
+        "StringEquals": {
+          "aws:PrincipalOrgID": ["o-12341234"],
+          "aws:PrincipalAccount": "111122223333"
+        }
+      }
+    }
+  ]
+}
+```

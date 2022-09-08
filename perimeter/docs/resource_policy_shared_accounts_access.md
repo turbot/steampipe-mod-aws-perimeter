@@ -43,6 +43,8 @@ And the following [condition operators](https://docs.aws.amazon.com/IAM/latest/U
 - `StringEqualsIgnoreCase`
 - `StringLike`
 
+Inverse condition operators, like `StringNotEquals` and `ArnNotLike`, are not currently evaluated.
+
 For each statement, if there are any condition keys then these condition keys will be evaluated as follows:
 
 The benchmark uses principals conditions, `aws:PrincipalAccount` and `aws:PrincipalArn` in its evaulation of the policy by checking the values in the principals conditions against the values set by the Principal element of the policy.
