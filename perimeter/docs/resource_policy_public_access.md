@@ -2,7 +2,7 @@ This benchmark answers the following questions:
 
 - What resources have resource policies that allow public access?
 
-This benchmark defines public as a policy having at least one `Allow` statement that grants one or more permission to the `*` principal, e.g.,
+This benchmark defines public as a policy having at least one `Allow` statement that grants one or more permission to the `*` principal, e.g.
 
 ```json
 {
@@ -36,6 +36,39 @@ This benchmark defines public as a policy having at least one `Allow` statement 
 }
 ```
 
+This benchmark also defines public as a policy which has an AWS service as the principal and _missing_ the condition which restricts the service access to a resource or account, such as `aws:SourceArn`, `aws:SourceOwner` or `aws:SourceAccount`, with at least one `Allow` statement that grants one or more permissions, e.g.
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Service": "cloudtrail.amazonaws.com"
+      },
+      "Action": "sts:AssumeRole",
+      "Resource": "arn:aws:cloudtrail:us-east-1:111122221111:trail/example-cloudtrail"
+    }
+  ]
+}
+```
+
+This benchmark finally defines public as a policy which has an SAML Identity Provider as the principal and _missing_ the condition which restricts the Identity Providers audience, such as `SAML:aud`, `SAML:iss`, `SAML:sub`, `SAML:sub_type` or `SAML:eduPersonOrgDN`, with at least one `Allow` statement that grants one or more permissions, e.g.
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": "sts:AssumeRoleWithSAML",
+      "Principal": { "Federated": "arn:aws:iam::111122223333:saml-provider-1/provider-name" }
+    }
+  ]
+}
+```
+
 When evaluating statements for public access, the following [condition keys](https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_condition-keys.html) are checked:
 
 - `aws:PrincipalAccount`
@@ -55,12 +88,58 @@ And the following [condition operators](https://docs.aws.amazon.com/IAM/latest/U
 
 For each statement, if there are any condition keys then these condition keys will be evaluated as follows:
 
-Principals conditions are checked against the Policy Principals.
-If Principals conditions have smaller scope that the Policy Principals then the analyzer will reduce the scopeage.
-If Principals conditions have larger scope that the Policy Principals then the analyzer will leave the Policy Principals unchanged.
-If Principals conditions have a scope that doesn't contain the the Policy Principals then the analyzer will return this as invalid.
+The analyser takes principals conditions, `aws:PrincipalAccount`, `aws:PrincipalArn` or `aws:PrincipalOrgID`.
+The analyser evaluates the values in the principals conditions against the values set by the Principal element of the policy and calculates the principals that will be granted public access.
 
-Source conditions are used to reduce AWS services, which are public in nature, to limit their scopeage to specified Principals.
-The policy analyser will use these conditions to determine if the service is public and has no valid Source conditions or shared where valid Source conditions exist.
+The following policy is not considered public since the condition has restricted its access to account `111122223333`:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowPublicAccess1",
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "*"
+      },
+      "Action": ["s3:PutObject", "s3:PutObjectAcl"],
+      "Resource": "arn:aws:s3:::EXAMPLE-BUCKET/*",
+      "Condition": {
+        "StringEquals": {
+          "aws:PrincipalAccount": "111122223333"
+        }
+      }
+    }
+  ]
+}
+```
+
+The same applies for source conditions, `aws:SourceAccount`, `aws:SourceOwner`, `aws:SourceArn`.
+The analyser evaluates the values in the source conditions against the values set by the Principal element of the policy.
+The analyser will check to see that the Principal is an AWS service before applying these conditions as they are used to restrict the scope of AWS services.
+
+The following policy is not considered public since the condition has restricted its access to account `111122223333`:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Service": "cloudtrail.amazonaws.com"
+      },
+      "Action": "sts:AssumeRole",
+      "Resource": "arn:aws:cloudtrail:us-east-1:111122221111:trail/example-cloudtrail",
+      "Condition": {
+        "StringEquals": {
+          "aws:SourceAccount": "111122223333"
+        }
+      }
+    }
+  ]
+}
+```
 
 Inverse condition operators, like `StringNotEquals` and `ArnNotLike`, are not currently evaluated.
