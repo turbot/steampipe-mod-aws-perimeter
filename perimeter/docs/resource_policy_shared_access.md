@@ -26,8 +26,8 @@ For example:
 }
 ```
 
-The above policy grants the principal `111122223333` which is an account access to the resource.
-If the `111122223333` is a trusted account, the benchmark will report that access has been given to the account and it is trusted.
+The above policy grants the principal `111122223333` access to a resource.
+If the `111122223333` is a trusted account, the benchmark will report that access has been given to the account and that it is trusted.
 Otherwise, the benchmark will alarm and report that account `111122223333` is untrusted.
 
 The benchmark analyses policies for:
