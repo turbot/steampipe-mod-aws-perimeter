@@ -88,8 +88,9 @@ And the following [condition operators](https://docs.aws.amazon.com/IAM/latest/U
 
 For each statement, if there are any condition keys then these condition keys will be evaluated as follows:
 
-The analyser takes principals conditions, `aws:PrincipalAccount`, `aws:PrincipalArn` or `aws:PrincipalOrgID`.
-The analyser evaluates the values in the principals conditions against the values set by the Principal element of the policy and calculates the principals that will be granted public access.
+The benchmark uses principals conditions, `aws:PrincipalAccount`, `aws:PrincipalArn` or `aws:PrincipalOrgID` in its evaulation of the policy by checking the values in the principals conditions against the values set by the Principal element of the policy.
+
+If there is a condition reduces the number of principals that allow access to a resource, the benchmark will calculate the reduced scope and use this value when running the benchmark controls.
 
 The following policy is not considered public since the condition has restricted its access to account `111122223333`:
 
@@ -115,11 +116,11 @@ The following policy is not considered public since the condition has restricted
 }
 ```
 
-The same applies for source conditions, `aws:SourceAccount`, `aws:SourceOwner`, `aws:SourceArn`.
-The analyser evaluates the values in the source conditions against the values set by the Principal element of the policy.
-The analyser will check to see that the Principal is an AWS service before applying these conditions as they are used to restrict the scope of AWS services.
+Similarly, for source conditions, `aws:SourceAccount`, `aws:SourceOwner`, `aws:SourceArn`.
+The benchmark evaluates the values in the source conditions against the values set by the Principal element of the policy.
+The benchmark will check to see that the Principal is an AWS service before applying these conditions as they are used to restrict the scope of AWS services.
 
-The following policy is not considered public since the condition has restricted its access to account `111122223333`:
+The following policy is not considered public since the condition restricts service access to account `111122223333`:
 
 ```json
 {
