@@ -1640,7 +1640,6 @@ locals {
           ' more].'
         )
       end as reason,
-      char_length((to_jsonb(pa.allowed_principal_federated_identities) - ($1)::text[] ->> 0)::text) - 40,
       __DIMENSIONS__
     from
       __TABLE_NAME__ as r,
