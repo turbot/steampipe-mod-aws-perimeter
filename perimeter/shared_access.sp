@@ -24,7 +24,7 @@ variable "trusted_services" {
 
 variable "trusted_identity_providers" {
   type        = list(string)
-  default     = ["arn:aws:iam::987654321098:saml-provider/provider-name", "accounts.google.com"]
+  default     = ["arn:aws:iam::987654321098:saml-provider/provider-name", "cognito-identity.amazonaws.com"]
   description = "A list of trusted AWS identity providers which can be shared with resources."
 }
 
@@ -909,6 +909,22 @@ control "rds_db_snapshot_shared_with_trusted_accounts" {
   })
 }
 
+benchmark "resource_policy_shared_access" {
+  title         = "Shared Access"                                                                                                                          # TODO
+  description   = "Resources should only be shared with trusted entities through AWS Resource Access Manager (RAM), configurations, or resource policies." # TODO
+  documentation = file("./perimeter/docs/resource_policy_shared_access.md")
+  children = [
+    benchmark.resource_policy_shared_accounts_access,
+    benchmark.resource_policy_shared_organizations_access,
+    benchmark.resource_policy_shared_services_access,
+    benchmark.resource_policy_shared_identity_providers_access,
+  ]
+
+  tags = merge(local.aws_perimeter_common_tags, {
+    type = "Benchmark"
+  })
+}
+
 locals {
   resource_policy_shared_account_sql = <<-EOT
     select
@@ -916,14 +932,12 @@ locals {
       case
         when jsonb_array_length(pa.allowed_principal_account_ids) = 0 then 'ok'
         when pa.access_level = 'private' then 'ok'
-        when pa.access_level = 'public' then 'alarm'
         when pa.allowed_principal_account_ids <@ to_jsonb(($1)::text[]) then 'ok'
         else 'alarm'
       end as status,
       case
         when jsonb_array_length(pa.allowed_principal_account_ids) = 0 then title || ' trust policy does not reference any accounts.'
         when pa.access_level = 'private' then title || ' trust policy does not reference any cross-accounts.'
-        when pa.access_level = 'public' then title || ' trust policy grants access to all AWS accounts.'
         when pa.allowed_principal_account_ids <@ to_jsonb(($1)::text[]) then concat(
           title, 
           ' trust policy grants cross-account access to ',
@@ -944,7 +958,7 @@ locals {
           jsonb_array_length(to_jsonb(pa.allowed_principal_account_ids) - ($1)::text[]),
           ' untrusted accounts: [',
           to_jsonb(pa.allowed_principal_account_ids) - ($1)::text[] ->> 0,
-          ',',
+          ', ',
           to_jsonb(pa.allowed_principal_account_ids) - ($1)::text[] ->> 1,
           '].'
         )
@@ -954,9 +968,11 @@ locals {
           jsonb_array_length(to_jsonb(pa.allowed_principal_account_ids) - ($1)::text[]),
           ' untrusted accounts: [',
           to_jsonb(pa.allowed_principal_account_ids) - ($1)::text[] ->> 0,
-          ',',
+          ', ',
           to_jsonb(pa.allowed_principal_account_ids) - ($1)::text[] ->> 1,
-          ',..].'
+          ', and ',
+          jsonb_array_length(to_jsonb(pa.allowed_principal_account_ids) - ($1)::text[]) - 2,
+          ' more].'
         )
       end as reason,
       __DIMENSIONS__
@@ -980,22 +996,6 @@ locals {
   resource_policy_shared_accounts_sql_account = replace(replace(local.resource_policy_shared_account_sql, "__DIMENSIONS__", "r.account_id"), "__CRITERIA__", "and pa.policy = r.assume_role_policy_std")
   resource_policy_shared_accounts_sql_region  = replace(replace(local.resource_policy_shared_account_sql, "__DIMENSIONS__", "r.region, r.account_id"), "__CRITERIA__", "and pa.policy = r.policy_std")
   resource_policy_shared_accounts_sql_kms     = replace(replace(local.resource_policy_shared_account_sql, "__DIMENSIONS__", "r.region, r.account_id"), "__CRITERIA__", "and pa.policy = r.policy_std and key_manager = 'CUSTOMER'")
-}
-
-benchmark "resource_policy_shared_access" {
-  title         = "Shared Access"                                                                                                                          # TODO
-  description   = "Resources should only be shared with trusted entities through AWS Resource Access Manager (RAM), configurations, or resource policies." # TODO
-  documentation = file("./perimeter/docs/resource_policy_shared_access.md")
-  children = [
-    benchmark.resource_policy_shared_accounts_access,
-    benchmark.resource_policy_shared_organizations_access,
-    benchmark.resource_policy_shared_services_access,
-    benchmark.resource_policy_shared_identity_providers_access,
-  ]
-
-  tags = merge(local.aws_perimeter_common_tags, {
-    type = "Benchmark"
-  })
 }
 
 benchmark "resource_policy_shared_accounts_access" {
@@ -1144,13 +1144,11 @@ locals {
       r.__ARN_COLUMN__ as resource,
       case
         when jsonb_array_length(pa.allowed_organization_ids) = 0 then 'ok'
-        when pa.access_level = 'public' then 'alarm'
         when pa.allowed_organization_ids <@ to_jsonb(($1)::text[]) then 'ok'
         else 'alarm'
       end as status,
       case
         when jsonb_array_length(pa.allowed_organization_ids) = 0 then title || ' trust policy does not reference any organizations.'
-        when pa.access_level = 'public' then title || ' trust policy grants wildcarded access to organizations.'
         when pa.allowed_organization_ids <@ to_jsonb(($1)::text[] || ($2)::text[]) then concat(
           title, 
           ' trust policy grants access to ',
@@ -1171,7 +1169,7 @@ locals {
           jsonb_array_length(to_jsonb(pa.allowed_organization_ids) - (($1)::text[] || ($2)::text[])),
           ' untrusted organizations: [',
           to_jsonb(pa.allowed_organization_ids) - (($1)::text[] || ($2)::text[]) ->> 0,
-          ',',
+          ', ',
           to_jsonb(pa.allowed_organization_ids) - (($1)::text[] || ($2)::text[]) ->> 1,
           '].'
         )
@@ -1181,9 +1179,11 @@ locals {
           jsonb_array_length(to_jsonb(pa.allowed_organization_ids) - (($1)::text[] || ($2)::text[])),
           ' untrusted organizations: [',
           to_jsonb(pa.allowed_organization_ids) - (($1)::text[] || ($2)::text[]) ->> 0,
-          ',',
+          ', ',
           to_jsonb(pa.allowed_organization_ids) - (($1)::text[] || ($2)::text[]) ->> 1,
-          ',..].'
+          ', and ',
+          jsonb_array_length(to_jsonb(pa.allowed_organization_ids) - ($1)::text[]) - 2,
+          ' more].'
         )
       end as reason,
       __DIMENSIONS__
@@ -1395,13 +1395,11 @@ locals {
       r.__ARN_COLUMN__ as resource,
       case
         when jsonb_array_length(pa.allowed_principal_services) = 0 then 'ok'
-        when pa.access_level = 'public' then 'alarm'
         when pa.allowed_principal_services <@ to_jsonb(($1)::text[]) then 'ok'
         else 'alarm'
       end as status,
       case
         when jsonb_array_length(pa.allowed_principal_services) = 0 then title || ' trust policy does not reference any services.'
-        when pa.access_level = 'public' then title || ' trust policy grants service access to public accounts.'
         when pa.allowed_principal_services <@ to_jsonb(($1)::text[]) then concat(
           title, 
           ' trust policy grants access to ',
@@ -1422,7 +1420,7 @@ locals {
           jsonb_array_length(to_jsonb(pa.allowed_principal_services) - ($1)::text[]),
           ' untrusted services: [',
           to_jsonb(pa.allowed_principal_services) - ($1)::text[] ->> 0,
-          ',',
+          ', ',
           to_jsonb(pa.allowed_principal_services) - ($1)::text[] ->> 1,
           '].'
         )
@@ -1432,9 +1430,11 @@ locals {
           jsonb_array_length(to_jsonb(pa.allowed_principal_services) - ($1)::text[]),
           ' untrusted services: [',
           to_jsonb(pa.allowed_principal_services) - ($1)::text[] ->> 0,
-          ',',
+          ', ',
           to_jsonb(pa.allowed_principal_services) - ($1)::text[] ->> 1,
-          ',..].'
+          ', and ',
+          jsonb_array_length(to_jsonb(pa.allowed_principal_services) - ($1)::text[]) - 2,
+          ' more].'
         )
       end as reason,
       __DIMENSIONS__
@@ -1606,13 +1606,11 @@ locals {
       r.__ARN_COLUMN__ as resource,
       case
         when jsonb_array_length(pa.allowed_principal_federated_identities) = 0 then 'ok'
-        when pa.access_level = 'public' then 'alarm'
         when pa.allowed_principal_federated_identities <@ to_jsonb(($1)::text[]) then 'ok'
         else 'alarm'
       end as status,
       case
         when jsonb_array_length(pa.allowed_principal_federated_identities) = 0 then title || ' trust policy does not reference any identity providers.'
-        when pa.access_level = 'public' then title || ' trust policy grants to wildcarded access to identity providers.'
         when pa.allowed_principal_federated_identities <@ to_jsonb(($1)::text[]) then concat(
           title, 
           ' trust policy grants access to ',
@@ -1624,17 +1622,9 @@ locals {
           ' trust policy grants access to ',
           jsonb_array_length(to_jsonb(pa.allowed_principal_federated_identities) - ($1)::text[]),
           ' untrusted identity provider: [',
-          to_jsonb(pa.allowed_principal_federated_identities) - ($1)::text[] ->> 0,
-          '].'
-        )
-        when jsonb_array_length(to_jsonb(pa.allowed_principal_federated_identities) - ($1)::text[]) = 2 then concat(
-          title,
-          ' trust policy grants access to ',
-          jsonb_array_length(to_jsonb(pa.allowed_principal_federated_identities) - ($1)::text[]),
-          ' untrusted identity providers: [',
-          to_jsonb(pa.allowed_principal_federated_identities) - ($1)::text[] ->> 0,
-          ',',
-          to_jsonb(pa.allowed_principal_federated_identities) - ($1)::text[] ->> 1,
+          case when char_length((to_jsonb(pa.allowed_principal_federated_identities) - ($1)::text[] ->> 0)::text) > 39 then '..' || substr(to_jsonb(pa.allowed_principal_federated_identities) - ($1)::text[] ->> 0, char_length((to_jsonb(pa.allowed_principal_federated_identities) - ($1)::text[] ->> 0)::text) - 39, 40)
+          else substr(to_jsonb(pa.allowed_principal_federated_identities) - ($1)::text[] ->> 0, 0, 42)
+          end,
           '].'
         )
         else concat(
@@ -1642,12 +1632,15 @@ locals {
           ' trust policy grants access to ',
           jsonb_array_length(to_jsonb(pa.allowed_principal_federated_identities) - ($1)::text[]),
           ' untrusted identity providers: [',
-          to_jsonb(pa.allowed_principal_federated_identities) - ($1)::text[] ->> 0,
-          ',',
-          to_jsonb(pa.allowed_principal_federated_identities) - ($1)::text[] ->> 1,
-          ',..].'
+          case when char_length((to_jsonb(pa.allowed_principal_federated_identities) - ($1)::text[] ->> 0)::text) > 39 then '..' || substr(to_jsonb(pa.allowed_principal_federated_identities) - ($1)::text[] ->> 0, char_length((to_jsonb(pa.allowed_principal_federated_identities) - ($1)::text[] ->> 0)::text) - 39, 40)
+          else substr(to_jsonb(pa.allowed_principal_federated_identities) - ($1)::text[] ->> 0, 0, 42)
+          end,
+          ', and ',
+          jsonb_array_length(to_jsonb(pa.allowed_principal_federated_identities) - ($1)::text[]) - 1,
+          ' more].'
         )
       end as reason,
+      char_length((to_jsonb(pa.allowed_principal_federated_identities) - ($1)::text[] ->> 0)::text) - 40,
       __DIMENSIONS__
     from
       __TABLE_NAME__ as r,
@@ -1810,46 +1803,3 @@ control "sqs_queue_policy_prohibits_untrusted_identity_providers_access" {
     service = "AWS/SQS"
   })
 }
-
-# control "omero_test" {
-#   title       = "S3 bucket policies should prohibit untrusted account access"
-#   description = "Check if S3 bucket policies allows access to untrusted accounts"
-#   sql         = <<-EOT
-#     select
-#       r.arn as resource,
-#       'ok' as status,
-#       r.arn as reason,
-#       case when true then '' || ((to_jsonb(pa.allowed_principal_account_ids) - ($1)::text[]) ->> 0)::text
-#       else 'Nothing'
-#       end as test
-#       -- to_jsonb(pa.allowed_principal_account_ids) - ($1)::text[],
-#       -- ($1)::text[] as test_array,
-#       -- pa.allowed_principal_account_ids,
-#       -- to_jsonb(pa.allowed_principal_account_ids) - ($1)::text[],
-#       -- jsonb_array_length(to_jsonb(pa.allowed_principal_account_ids) - ($1)::text[]),
-#       -- to_jsonb(pa.allowed_principal_account_ids) ->> 0,
-#       -- to_jsonb(pa.allowed_principal_account_ids) - ($1)::text[]  #>> '{0}'
-#     from
-#       aws_s3_bucket as r,
-#       aws_resource_policy_analysis as pa
-#     where
-#       pa.account_id = r.account_id
-#       and pa.policy = r.policy_std
-#     group by
-#       resource,
-#       title,
-#       pa.is_public,
-#       pa.allowed_principal_account_ids,
-#       pa.access_level,
-#       r.account_id
-#   EOT
-
-#   param "trusted_accounts" {
-#     description = "A list of trusted accounts."
-#     default     = var.trusted_accounts
-#   }
-
-#   tags = merge(local.aws_perimeter_common_tags, {
-#     service = "AWS/S3"
-#   })
-# }
