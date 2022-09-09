@@ -948,31 +948,17 @@ locals {
           title,
           ' trust policy grants cross-account access to ',
           jsonb_array_length(to_jsonb(pa.allowed_principal_account_ids) - ($1)::text[]),
-          ' untrusted account: [',
-          to_jsonb(pa.allowed_principal_account_ids) - ($1)::text[] ->> 0,
-          '].'
-        )
-        when jsonb_array_length(to_jsonb(pa.allowed_principal_account_ids) - ($1)::text[]) = 2 then concat(
-          title,
-          ' trust policy grants cross-account access to ',
-          jsonb_array_length(to_jsonb(pa.allowed_principal_account_ids) - ($1)::text[]),
-          ' untrusted accounts: [',
-          to_jsonb(pa.allowed_principal_account_ids) - ($1)::text[] ->> 0,
-          ', ',
-          to_jsonb(pa.allowed_principal_account_ids) - ($1)::text[] ->> 1,
-          '].'
+          ' untrusted account: ',
+          to_jsonb(pa.allowed_principal_account_ids) - ($1)::text[],
+          '.'
         )
         else concat(
           title,
           ' trust policy grants cross-account access to ',
           jsonb_array_length(to_jsonb(pa.allowed_principal_account_ids) - ($1)::text[]),
-          ' untrusted accounts: [',
-          to_jsonb(pa.allowed_principal_account_ids) - ($1)::text[] ->> 0,
-          ', ',
-          to_jsonb(pa.allowed_principal_account_ids) - ($1)::text[] ->> 1,
-          ', and ',
-          jsonb_array_length(to_jsonb(pa.allowed_principal_account_ids) - ($1)::text[]) - 2,
-          ' more].'
+          ' untrusted accounts: ',
+          to_jsonb(pa.allowed_principal_account_ids) - ($1)::text[],
+          '.'
         )
       end as reason,
       __DIMENSIONS__
@@ -1159,31 +1145,17 @@ locals {
           title,
           ' trust policy grants access to ',
           jsonb_array_length(to_jsonb(pa.allowed_organization_ids) - (($1)::text[] || ($2)::text[])),
-          ' untrusted organization: [',
-          to_jsonb(pa.allowed_organization_ids) - (($1)::text[] || ($2)::text[]) ->> 0,
-          '].'
-        )
-        when jsonb_array_length(to_jsonb(pa.allowed_organization_ids) - (($1)::text[] || ($2)::text[])) = 2 then concat(
-          title,
-          ' trust policy grants access to ',
-          jsonb_array_length(to_jsonb(pa.allowed_organization_ids) - (($1)::text[] || ($2)::text[])),
-          ' untrusted organizations: [',
-          to_jsonb(pa.allowed_organization_ids) - (($1)::text[] || ($2)::text[]) ->> 0,
-          ', ',
-          to_jsonb(pa.allowed_organization_ids) - (($1)::text[] || ($2)::text[]) ->> 1,
-          '].'
+          ' untrusted organization: ',
+          to_jsonb(pa.allowed_organization_ids) - (($1)::text[] || ($2)::text[]),
+          '.'
         )
         else concat(
           title,
           ' trust policy grants access to ',
           jsonb_array_length(to_jsonb(pa.allowed_organization_ids) - (($1)::text[] || ($2)::text[])),
-          ' untrusted organizations: [',
-          to_jsonb(pa.allowed_organization_ids) - (($1)::text[] || ($2)::text[]) ->> 0,
-          ', ',
-          to_jsonb(pa.allowed_organization_ids) - (($1)::text[] || ($2)::text[]) ->> 1,
-          ', and ',
-          jsonb_array_length(to_jsonb(pa.allowed_organization_ids) - ($1)::text[]) - 2,
-          ' more].'
+          ' untrusted organizations: ',
+          to_jsonb(pa.allowed_organization_ids) - (($1)::text[] || ($2)::text[]),
+          '.'
         )
       end as reason,
       __DIMENSIONS__
@@ -1410,31 +1382,17 @@ locals {
           title,
           ' trust policy grants access to ',
           jsonb_array_length(to_jsonb(pa.allowed_principal_services) - ($1)::text[]),
-          ' untrusted service: [',
-          to_jsonb(pa.allowed_principal_services) - ($1)::text[] ->> 0,
-          '].'
-        )
-        when jsonb_array_length(to_jsonb(pa.allowed_principal_services) - ($1)::text[]) = 2 then concat(
-          title,
-          ' trust policy grants access to ',
-          jsonb_array_length(to_jsonb(pa.allowed_principal_services) - ($1)::text[]),
-          ' untrusted services: [',
-          to_jsonb(pa.allowed_principal_services) - ($1)::text[] ->> 0,
-          ', ',
-          to_jsonb(pa.allowed_principal_services) - ($1)::text[] ->> 1,
-          '].'
+          ' untrusted service: ',
+          to_jsonb(pa.allowed_principal_services) - ($1)::text[],
+          '.'
         )
         else concat(
           title,
           ' trust policy grants access to ',
           jsonb_array_length(to_jsonb(pa.allowed_principal_services) - ($1)::text[]),
-          ' untrusted services: [',
-          to_jsonb(pa.allowed_principal_services) - ($1)::text[] ->> 0,
-          ', ',
-          to_jsonb(pa.allowed_principal_services) - ($1)::text[] ->> 1,
-          ', and ',
-          jsonb_array_length(to_jsonb(pa.allowed_principal_services) - ($1)::text[]) - 2,
-          ' more].'
+          ' untrusted services: ',
+          to_jsonb(pa.allowed_principal_services) - ($1)::text[],
+          '.'
         )
       end as reason,
       __DIMENSIONS__
@@ -1621,23 +1579,17 @@ locals {
           title,
           ' trust policy grants access to ',
           jsonb_array_length(to_jsonb(pa.allowed_principal_federated_identities) - ($1)::text[]),
-          ' untrusted identity provider: [',
-          case when char_length((to_jsonb(pa.allowed_principal_federated_identities) - ($1)::text[] ->> 0)::text) > 39 then '..' || substr(to_jsonb(pa.allowed_principal_federated_identities) - ($1)::text[] ->> 0, char_length((to_jsonb(pa.allowed_principal_federated_identities) - ($1)::text[] ->> 0)::text) - 39, 40)
-          else substr(to_jsonb(pa.allowed_principal_federated_identities) - ($1)::text[] ->> 0, 0, 42)
-          end,
-          '].'
+          ' untrusted identity provider: ',
+          to_jsonb(pa.allowed_principal_federated_identities) - ($1)::text[],
+          '.'
         )
         else concat(
           title,
           ' trust policy grants access to ',
           jsonb_array_length(to_jsonb(pa.allowed_principal_federated_identities) - ($1)::text[]),
-          ' untrusted identity providers: [',
-          case when char_length((to_jsonb(pa.allowed_principal_federated_identities) - ($1)::text[] ->> 0)::text) > 39 then '..' || substr(to_jsonb(pa.allowed_principal_federated_identities) - ($1)::text[] ->> 0, char_length((to_jsonb(pa.allowed_principal_federated_identities) - ($1)::text[] ->> 0)::text) - 39, 40)
-          else substr(to_jsonb(pa.allowed_principal_federated_identities) - ($1)::text[] ->> 0, 0, 42)
-          end,
-          ', and ',
-          jsonb_array_length(to_jsonb(pa.allowed_principal_federated_identities) - ($1)::text[]) - 1,
-          ' more].'
+          ' untrusted identity providers: ',
+          to_jsonb(pa.allowed_principal_federated_identities) - ($1)::text[],
+          '.'
         )
       end as reason,
       __DIMENSIONS__
