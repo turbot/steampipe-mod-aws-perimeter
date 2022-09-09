@@ -100,10 +100,16 @@ control "ram_resource_shared_with_trusted_accounts" {
         when jsonb_array_length(untrusted_accounts) > 0 then
           resource ||
           case
-            when jsonb_array_length(untrusted_accounts) > 2 then
-              concat(' shared with untrusted accounts ', untrusted_accounts #>> '{0}', ', ', untrusted_accounts #>> '{1}', ' and ', (jsonb_array_length(untrusted_accounts) - 2)::text, ' more.')
-            when jsonb_array_length(untrusted_accounts) = 2 then concat(' shared with untrusted accounts ', untrusted_accounts #>> '{0}', ' and ', untrusted_accounts #>> '{1}', '.')
-            else concat(' shared with untrusted account ', untrusted_accounts #>> '{0}', '.')
+            when jsonb_array_length(untrusted_accounts) = 1 then concat(
+              ' shared with untrusted account ', 
+              untrusted_accounts, 
+              '.'
+            )
+            else concat(
+              ' shared with untrusted accounts ', 
+              untrusted_accounts,
+              '.'
+            )
           end
         else resource || ' shared with trusted account(s).'
       end as reason,
