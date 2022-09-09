@@ -172,10 +172,16 @@ control "ram_resource_shared_with_trusted_organizations" {
         when jsonb_array_length(untrusted_organizations) > 0 then
           resource ||
           case
-            when jsonb_array_length(untrusted_organizations) > 2 then
-              concat(' shared with untrusted organizations ', untrusted_organizations #>> '{0}', ', ', untrusted_organizations #>> '{1}', ' and ', (jsonb_array_length(untrusted_organizations) - 2)::text, ' more.')
-            when jsonb_array_length(untrusted_organizations) = 2 then concat(' shared with untrusted organizations ', untrusted_organizations #>> '{0}', ' and ', untrusted_organizations #>> '{1}', '.')
-            else concat(' shared with untrusted organization ', untrusted_organizations #>> '{0}', '.')
+            when jsonb_array_length(untrusted_organizations) > 1 then concat(
+              ' shared with untrusted organizations ', 
+              untrusted_organizations, 
+              '.'
+            )
+            else concat(
+              ' shared with untrusted organization ', 
+              untrusted_organizations, 
+              '.'
+            )
           end
         else resource || ' shared with trusted organizationt(s).'
       end as reason,
