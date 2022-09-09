@@ -244,10 +244,16 @@ control "ram_resource_shared_with_trusted_organization_units" {
         when jsonb_array_length(untrusted_organizations_unit) > 0 then
           resource ||
           case
-            when jsonb_array_length(untrusted_organizations_unit) > 2 then
-              concat( ' shared with untrusted OUs ' ,untrusted_organizations_unit #>> '{0}', ', ', untrusted_organizations_unit #>> '{1}', ' and ', (jsonb_array_length(untrusted_organizations_unit) - 2)::text, ' more.')
-            when jsonb_array_length(untrusted_organizations_unit) = 2 then concat(' shared with untrusted OUs ', untrusted_organizations_unit #>> '{0}', ', ', untrusted_organizations_unit #>> '{1}', '.')
-            else concat(' shared with untrusted OU ', untrusted_organizations_unit #>> '{0}', '.')
+            when jsonb_array_length(untrusted_organizations_unit) > 1 then concat(
+              ' shared with untrusted OUs ',
+              untrusted_organizations_unit,
+              '.'
+            )
+            else concat(
+              ' shared with untrusted OU ', 
+              untrusted_organizations_unit,
+              '.'
+            )
           end
         else resource || ' shared with trusted OU(s).'
       end as reason,
@@ -376,11 +382,16 @@ control "directory_service_directory_shared_with_trusted_accounts" {
         when shared_accounts is null or jsonb_array_length(shared_accounts) = 0 then directory_id || ' is not shared.'
         when untrusted_accounts is not null or jsonb_array_length(shared_accounts) > 0 then directory_id || ' shared with ' ||
           case
-            when jsonb_array_length(untrusted_accounts) > 2
-            then concat('untrusted accounts ' , untrusted_accounts #>> '{0}', ', ', untrusted_accounts #>> '{1}', ' and ' || (jsonb_array_length(untrusted_accounts) - 2)::text || ' more.')
-            when jsonb_array_length(untrusted_accounts) = 2 then
-            concat('untrusted accounts ', untrusted_accounts #>> '{0}', ' and ', untrusted_accounts #>> '{1}', '.')
-            else concat('untrusted account ', untrusted_accounts #>> '{0}', '.')
+            when jsonb_array_length(untrusted_accounts) > 1 then concat(
+              'untrusted accounts ',
+              untrusted_accounts,
+              '.'
+            )
+            else concat(
+              'untrusted account ', 
+              untrusted_accounts,
+              '.'
+            )
           end
         else directory_id || ' shared with trusted account(s).'
       end as reason,
@@ -411,10 +422,10 @@ control "dlm_ebs_snapshot_policy_shared_with_trusted_accounts" {
         policy_type,
         state,
         -- A DLM policy can have at most 4 schedules, we need to verify each schedule if snapshots, through it will be shared to external accounts
-        (policy_details #> '{Schedules,0,ShareRules,0,TargetAccounts}')::jsonb - ($1)::text[] as schedule_0_untrusted_accountss,
-        (policy_details #> '{Schedules,1,ShareRules,0,TargetAccounts}')::jsonb - ($1)::text[] as schedule_1_untrusted_accountss,
-        (policy_details #> '{Schedules,2,ShareRules,0,TargetAccounts}')::jsonb - ($1)::text[] as schedule_2_untrusted_accountss,
-        (policy_details #> '{Schedules,3,ShareRules,0,TargetAccounts}')::jsonb - ($1)::text[] as schedule_3_untrusted_accountss,
+        (policy_details #> '{Schedules,0,ShareRules,0,TargetAccounts}')::jsonb - ($1)::text[] as schedule_0_untrusted_accounts,
+        (policy_details #> '{Schedules,1,ShareRules,0,TargetAccounts}')::jsonb - ($1)::text[] as schedule_1_untrusted_accounts,
+        (policy_details #> '{Schedules,2,ShareRules,0,TargetAccounts}')::jsonb - ($1)::text[] as schedule_2_untrusted_accounts,
+        (policy_details #> '{Schedules,3,ShareRules,0,TargetAccounts}')::jsonb - ($1)::text[] as schedule_3_untrusted_accounts,
         account_id,
         region
       from
@@ -426,51 +437,69 @@ control "dlm_ebs_snapshot_policy_shared_with_trusted_accounts" {
       policy_id as resource,
       case
         when state = 'DISABLED' then 'skip'
-        when jsonb_array_length(schedule_0_untrusted_accountss) > 0
-        or jsonb_array_length(schedule_1_untrusted_accountss) > 0
-        or jsonb_array_length(schedule_2_untrusted_accountss) > 0
-        or jsonb_array_length(schedule_3_untrusted_accountss) > 0 then 'info'
+        when jsonb_array_length(schedule_0_untrusted_accounts) > 0
+        or jsonb_array_length(schedule_1_untrusted_accounts) > 0
+        or jsonb_array_length(schedule_2_untrusted_accounts) > 0
+        or jsonb_array_length(schedule_3_untrusted_accounts) > 0 then 'info'
       else 'ok'
       end as status,
       case
         when state = 'DISABLED' then policy_id || ' policy disabled.'
-        when jsonb_array_length(schedule_0_untrusted_accountss) > 0 then
+        when jsonb_array_length(schedule_0_untrusted_accounts) > 0 then
           policy_id || ' creates EBS snapshots and shares with ' ||
           case
-            when jsonb_array_length(schedule_0_untrusted_accountss) > 2 then
-              concat(schedule_0_untrusted_accountss #>> '{0}', ', ', schedule_0_untrusted_accountss #>> '{1}', ' and ', (jsonb_array_length(schedule_0_untrusted_accountss) - 2)::text, ' more untrusted account(s).')
-            when jsonb_array_length(schedule_0_untrusted_accountss) = 2 then
-              concat(schedule_0_untrusted_accountss #>> '{0}', ', ', schedule_0_untrusted_accountss #>> '{1}', ' untrusted accounts.')
-            else concat(schedule_0_untrusted_accountss #>> '{0}', ' untrusted account.')
+            when jsonb_array_length(schedule_0_untrusted_accounts) > 1 then concat(
+              schedule_0_untrusted_accounts,
+              ' untrusted accounts.'
+            )
+            else concat(
+              schedule_0_untrusted_accounts,
+              ' untrusted account.'
+            )
           end
-        when jsonb_array_length(schedule_1_untrusted_accountss) > 0 then
+        when jsonb_array_length(schedule_1_untrusted_accounts) > 0 then
           policy_id || ' creates EBS snapshots and shares with ' ||
           case
-            when jsonb_array_length(schedule_1_untrusted_accountss) > 2 then
-              concat('untrusted accounts ', schedule_1_untrusted_accountss #>> '{0}', ', ', schedule_1_untrusted_accountss #>> '{1}', ' and ', (jsonb_array_length(schedule_1_untrusted_accountss) - 2)::text, ' more.')
-            when jsonb_array_length(schedule_1_untrusted_accountss) = 2 then
-              concat('untrusted accounts ', schedule_1_untrusted_accountss #>> '{0}', ' and ', schedule_1_untrusted_accountss #>> '{1}', '.')
-            else concat('untrusted account ', schedule_1_untrusted_accountss #>> '{0}', '.')
-          end
-
-        when jsonb_array_length(schedule_2_untrusted_accountss) > 0 then
-          policy_id || ' creates EBS snapshots and shares with ' ||
-          case
-            when jsonb_array_length(schedule_2_untrusted_accountss) > 2 then
-              concat('untrusted accounts ', schedule_2_untrusted_accountss #>> '{0}', ', ', schedule_2_untrusted_accountss #>> '{1}', ' and ', (jsonb_array_length(schedule_2_untrusted_accountss) - 2)::text, ' more.')
-            when jsonb_array_length(schedule_2_untrusted_accountss) = 2 then
-              concat('untrusted accounts ', schedule_2_untrusted_accountss #>> '{0}', ' and ', schedule_2_untrusted_accountss #>> '{1}', '.')
-            else concat('untrusted account ', schedule_2_untrusted_accountss #>> '{0}', '.')
+            when jsonb_array_length(schedule_1_untrusted_accounts) > 1 then concat(
+              'untrusted accounts ', 
+              schedule_1_untrusted_accounts,
+              '.'
+            )
+            else concat(
+              'untrusted account ', 
+              schedule_1_untrusted_accounts,
+              '.'
+            )
           end
 
-        when jsonb_array_length(schedule_3_untrusted_accountss) > 0 then
+        when jsonb_array_length(schedule_2_untrusted_accounts) > 0 then
           policy_id || ' creates EBS snapshots and shares with ' ||
           case
-            when jsonb_array_length(schedule_3_untrusted_accountss) > 2 then
-              concat('untrusted accounts ', schedule_3_untrusted_accountss #>> '{0}', ', ', schedule_3_untrusted_accountss #>> '{1}', ' and ', (jsonb_array_length(schedule_3_untrusted_accountss) - 2)::text, ' more.')
-            when jsonb_array_length(schedule_3_untrusted_accountss) = 2 then
-              concat('untrusted accounts ', schedule_3_untrusted_accountss #>> '{0}', ' and ', schedule_3_untrusted_accountss #>> '{1}', '.')
-            else concat('untrusted account ', schedule_3_untrusted_accountss #>> '{0}', '.')
+            when jsonb_array_length(schedule_2_untrusted_accounts) > 1 then concat(
+              'untrusted accounts ', 
+              schedule_2_untrusted_accounts,
+              '.'
+            )
+            else concat(
+              'untrusted account ', 
+              schedule_2_untrusted_accounts,
+              '.'
+            )
+          end
+
+        when jsonb_array_length(schedule_3_untrusted_accounts) > 0 then
+          policy_id || ' creates EBS snapshots and shares with ' ||
+          case
+            when jsonb_array_length(schedule_3_untrusted_accounts) > 1 then concat(
+              'untrusted accounts ', 
+              schedule_3_untrusted_accounts,
+              '.'
+            )
+            else concat(
+              'untrusted account ', 
+              schedule_3_untrusted_accounts,
+              '.'
+            )
           end
         else policy_id || ' does not create any EBS snapshot shared with untrusted account(s).'
       end as reason,
@@ -546,11 +575,16 @@ control "ec2_ami_shared_with_trusted_accounts" {
         when shared_accounts is null then title || ' is not shared.'
         when untrusted_accounts is not null then title ||
           case
-            when jsonb_array_length(untrusted_accounts) > 2
-            then concat(' shared with untrusted accounts ', untrusted_accounts #>> '{0}', ', ', untrusted_accounts #>> '{1}', ' and ' || (jsonb_array_length(untrusted_accounts) - 2)::text || ' more.' )
-            when jsonb_array_length(untrusted_accounts) = 2
-            then concat(' shared with untrusted accounts ', untrusted_accounts #>> '{0}', ' and ', untrusted_accounts #>> '{1}', '.')
-            else concat(' shared with untrusted account ', untrusted_accounts #>> '{0}', '.')
+            when jsonb_array_length(untrusted_accounts) > 1 then concat(
+              ' shared with untrusted accounts ', 
+              untrusted_accounts, 
+              '.'
+            )
+            else concat(
+              ' shared with untrusted account ', 
+              untrusted_accounts, 
+              '.'
+            )
           end
         else title || ' shared with trusted account(s).'
       end as reason,
@@ -626,11 +660,16 @@ control "ec2_ami_shared_with_trusted_organizations" {
         when shared_organizations is null then title || ' is not shared.'
         when untrusted_organizations is not null then title || ' shared with ' ||
           case
-            when jsonb_array_length(untrusted_organizations) > 2
-            then concat('untrusted organizations ', untrusted_organizations #>> '{0}', ', ', untrusted_organizations #>> '{1}', ' and ' || (jsonb_array_length(untrusted_organizations) - 2)::text || ' more.' )
-            when jsonb_array_length(untrusted_organizations) = 2
-            then concat('untrusted organizations ', untrusted_organizations #>> '{0}', ' and ', untrusted_organizations #>> '{1}', '.')
-            else concat('untrusted organization ', untrusted_organizations #>> '{0}', '.')
+            when jsonb_array_length(untrusted_organizations) > 1 then concat(
+              'untrusted organizations ', 
+              untrusted_organizations,
+              '.'
+            )
+            else concat(
+              'untrusted organization ',
+              untrusted_organizations,
+              '.'
+            )
           end
         else title || ' shared with trusted organization(s).'
         end as reason,
@@ -706,11 +745,16 @@ control "ec2_ami_shared_with_trusted_organization_units" {
         when shared_organization_units is null then title || ' is not shared.'
         when shared_organization_units is not null then title || ' shared with ' ||
           case
-            when jsonb_array_length(untrusted_organization_units) > 2
-            then concat('untrusted OUs ', untrusted_organization_units #>> '{0}', ', ', untrusted_organization_units #>> '{1}', ' and ' || (jsonb_array_length(untrusted_organization_units) - 2)::text || ' more.' )
-            when jsonb_array_length(untrusted_organization_units) = 2
-            then concat('untrusted OUs ', untrusted_organization_units #>> '{0}', ' and ', untrusted_organization_units #>> '{1}', '.')
-            else concat('untrusted OU ', untrusted_organization_units #>> '{0}', '.')
+            when jsonb_array_length(untrusted_organization_units) > 1 then concat(
+              'untrusted OUs ', 
+              untrusted_organization_units,
+              '.'
+            )
+            else concat(
+              'untrusted OU ', 
+              untrusted_organization_units,
+              '.'
+            )
           end
         else title || ' shared with trusted OU(s).'
       end as reason,
@@ -763,11 +807,16 @@ control "ebs_snapshot_shared_with_trusted_accounts" {
         when jsonb_array_length(untrusted_accounts) > 0 and untrusted_accounts #>> '{0}' != 'all'
         then s.title || ' shared with ' ||
       case
-        when jsonb_array_length(untrusted_accounts) > 2
-        then concat('untrusted accounts ', untrusted_accounts #>> '{0}', ', ', untrusted_accounts #>> '{1}', ' and ' || (jsonb_array_length(untrusted_accounts) - 2)::text || ' more.' )
-        when jsonb_array_length(untrusted_accounts) = 2
-        then concat('untrusted accounts ', untrusted_accounts #>> '{0}', ' and ', untrusted_accounts #>> '{1}' , '.')
-        else concat('untrusted account ', untrusted_accounts #>> '{0}', '.')
+        when jsonb_array_length(untrusted_accounts) > 1 then concat(
+          'untrusted accounts ',
+          untrusted_accounts,
+          '.'
+        )
+        else concat(
+          'untrusted account ',
+          untrusted_accounts,
+          '.'
+        )
       end
         else
           case when list is null then s.title || ' is not shared.'
@@ -850,11 +899,16 @@ control "rds_db_snapshot_shared_with_trusted_accounts" {
         when jsonb_array_length(untrusted_accounts) > 0 and untrusted_accounts #>> '{0}' != 'all'
         then title ||
       case
-        when jsonb_array_length(untrusted_accounts) > 2
-        then concat(' shared with untrusted accounts ', untrusted_accounts #>> '{0}', ', ', untrusted_accounts #>> '{1}', ' and ' || (jsonb_array_length(untrusted_accounts) - 2)::text || ' more.' )
-        when jsonb_array_length(untrusted_accounts) = 2
-        then concat(' shared with untrusted accounts ', untrusted_accounts #>> '{0}', ' and ', untrusted_accounts #>> '{1}', '.')
-        else concat(' shared with untrusted account ', untrusted_accounts #>> '{0}', '.')
+        when jsonb_array_length(untrusted_accounts) > 1 then concat(
+          ' shared with untrusted accounts ', 
+          untrusted_accounts,
+          '.'
+        )
+        else concat(
+          ' shared with untrusted account ', 
+          untrusted_accounts,
+          '.'
+        )
       end
         else
           case
@@ -893,11 +947,16 @@ control "rds_db_snapshot_shared_with_trusted_accounts" {
         when jsonb_array_length(untrusted_accounts) > 0 and untrusted_accounts #>> '{0}' != 'all'
         then title ||
       case
-        when jsonb_array_length(untrusted_accounts) > 2
-        then concat(' shared with untrusted accounts ', untrusted_accounts #>> '{0}', ', ', untrusted_accounts #>> '{1}', ' and ' || (jsonb_array_length(untrusted_accounts) - 2)::text || ' more.' )
-        when jsonb_array_length(untrusted_accounts) = 2
-        then concat(' shared with untrusted accounts ', untrusted_accounts #>> '{0}', ' and ', untrusted_accounts #>> '{1}')
-        else concat(' shared with untrusted account ', untrusted_accounts #>> '{0}', '.')
+        when jsonb_array_length(untrusted_accounts) > 1 then concat(
+          ' shared with untrusted accounts ', 
+          untrusted_accounts,
+          '.'
+        )
+        else concat(
+          ' shared with untrusted account ', 
+          untrusted_accounts,
+          '.'
+        )
       end
         else
           case
