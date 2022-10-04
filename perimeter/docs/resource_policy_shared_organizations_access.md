@@ -53,9 +53,9 @@ Inverse condition operators, like `StringNotEquals` and `ArnNotLike`, are not cu
 
 For each statement, if there are any condition keys then these condition keys will be evaluated as follows:
 
-The benchmark uses principals conditions, `aws:PrincipalAccount`, `aws:PrincipalArn` or `PrincipalOrgID` in its evaulation of the policy by checking the values in the principals conditions against the values set by the Principal element of the policy.
+The benchmark uses principals conditions, `aws:PrincipalAccount`, `aws:PrincipalArn` or `PrincipalOrgID` in its evaluation of the policy by checking the values set in the conditions against the values set by the Principal element of the policy.
 
-If there is a condition reduces the number of principals that allow access to a resource, the benchmark will calculate the reduced scope and use this value when running the benchmark controls.
+If there is a condition that reduces the number of principals that allow access to a resource, the benchmark will calculate the reduced scope and use this value when running the benchmark controls.
 
 The following example policy restricts access to account `111122223333` and organization `o-12341234`.
 The benchmark will use the value to test if the organization is a trusted organization:

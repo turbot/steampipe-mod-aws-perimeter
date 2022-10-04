@@ -1,7 +1,7 @@
 This benchmark answers the following questions:
 
 - What resources have resource policies that grant access to AWS identity providers?
-- Which identity providers have been granted access are not trusted?
+- Which identity providers have been granted access and are not trusted?
 
 This benchmark defines shared as a policy having at least one `Allow` statement that grants one or more permission to a principal.
 The benchmark exposes the variable `trusted_identity_providers` which can be used to set which identity providers are trusted.
@@ -44,9 +44,9 @@ Inverse condition operators, like `StringNotEquals` and `ArnNotLike`, are not cu
 
 For each statement, if there are any condition keys then these condition keys will be evaluated as follows:
 
-The benchmark uses principals conditions, `aws:PrincipalAccount` and `aws:PrincipalArn` in its evaulation of the policy by checking the values in the principals conditions against the values set by the Principal element of the policy.
+The benchmark uses principals conditions, `aws:PrincipalAccount` and `aws:PrincipalArn` in its evaluation of the policy by checking the values set in the conditions against the values set by the Principal element of the policy.
 
-If there is a condition reduces the number of principals that allow access to a resource, the benchmark will calculate the reduced scope and use this value when running the benchmark controls.
+If there is a condition that reduces the number of principals that allow access to a resource, the benchmark will calculate the reduced scope and use this value when running the benchmark controls.
 
 The following example policy restricts access to account `111122223333` and identity provider `arn:aws:iam::111122223333:saml-provider-1/provider-name`.
 The benchmark will use the value to test if the identity provider is a trusted identity provider:

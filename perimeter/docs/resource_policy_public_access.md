@@ -36,7 +36,7 @@ This benchmark defines public as a policy having at least one `Allow` statement 
 }
 ```
 
-This benchmark also defines public as a policy which has an AWS service as the principal and _missing_ the condition which restricts the service access to a resource or account, such as `aws:SourceArn`, `aws:SourceOwner` or `aws:SourceAccount`, with at least one `Allow` statement that grants one or more permissions, e.g.
+This benchmark also defines public as a policy that has an AWS service as the principal and _missing_ the condition which restricts the service access to a resource or account, such as `aws:SourceArn`, `aws:SourceOwner` or `aws:SourceAccount`, with at least one `Allow` statement that grants one or more permissions, e.g.
 
 ```json
 {
@@ -54,7 +54,7 @@ This benchmark also defines public as a policy which has an AWS service as the p
 }
 ```
 
-This benchmark finally defines public as a policy which has an SAML Identity Provider as the principal and _missing_ the condition which restricts the Identity Providers audience, such as `SAML:aud`, `SAML:iss`, `SAML:sub`, `SAML:sub_type` or `SAML:eduPersonOrgDN`, with at least one `Allow` statement that grants one or more permissions, e.g.
+This benchmark finally defines public as a policy that has a SAML Identity Provider as the principal and _missing_ the condition which restricts the Identity Providers audience, such as `SAML:aud`, `SAML:iss`, `SAML:sub`, `SAML:sub_type` or `SAML:eduPersonOrgDN`, with at least one `Allow` statement that grants one or more permissions, e.g.
 
 ```json
 {
@@ -90,9 +90,9 @@ Inverse condition operators, like `StringNotEquals` and `ArnNotLike`, are not cu
 
 For each statement, if there are any condition keys then these condition keys will be evaluated as follows:
 
-The benchmark uses principals conditions, `aws:PrincipalAccount`, `aws:PrincipalArn` or `aws:PrincipalOrgID` in its evaulation of the policy by checking the values in the principals conditions against the values set by the Principal element of the policy.
+The benchmark uses principals conditions, `aws:PrincipalAccount`, `aws:PrincipalArn` or `aws:PrincipalOrgID` in its evaluation of the policy by checking the values in the conditions against the values set by the Principal element of the policy.
 
-If there is a condition reduces the number of principals that allow access to a resource, the benchmark will calculate the reduced scope and use this value when running the benchmark controls.
+If there is a condition that reduces the number of principals that allow access to a resource, the benchmark will calculate the reduced scope and use this value when running the benchmark controls.
 
 The following policy is not considered public since the condition has restricted its access to account `111122223333`:
 

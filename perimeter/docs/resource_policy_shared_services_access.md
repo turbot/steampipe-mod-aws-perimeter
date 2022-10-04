@@ -1,7 +1,7 @@
 This benchmark answers the following questions:
 
 - What resources have resource policies that grant access to AWS services?
-- Which services have been granted access are not trusted?
+- Which services have been granted access and are not trusted?
 
 This benchmark defines shared as a policy having at least one `Allow` statement that grants one or more permission to a principal.
 The benchmark exposes the variable `trusted_services` which can be used to set which services are trusted.
@@ -27,7 +27,7 @@ For example:
 
 The above policy grants service access to AWS service `cloudtrail.amazonaws.com` from any account.
 If `cloudtrail.amazonaws.com` is a trusted service, the benchmark will report that access has been granted to the service and that it is trusted.
-Otherwise, the benchmark will alarm and report that service `cloudtrail.amazonaws.com` is untrusted.
+Otherwise, the benchmark will alarm and report that the service `cloudtrail.amazonaws.com` is untrusted.
 
 When evaluating statements for public access, the following [condition keys](https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_condition-keys.html) are checked:
 
