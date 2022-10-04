@@ -1,4 +1,4 @@
-## Network Access
+## Network access
 
 A network is essential to secure the network traffic and the cloud’s environment from being exploited by unauthorized consumers. Thus, access control for network boundaries and allowlists for network communications are required and may be applied following recommended industry-standard best practices.
 
