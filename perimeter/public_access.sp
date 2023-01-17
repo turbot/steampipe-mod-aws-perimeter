@@ -539,10 +539,12 @@ locals {
     select
       r.__ARN_COLUMN__ as resource,
       case
+        when r.policy is null then 'info'
         when p.__ARN_COLUMN__ is null then 'ok'
         else 'alarm'
       end as status,
       case
+        when r.policy is null then title || ' does not have defined policy or insufficient access to the policy.'
         when p.__ARN_COLUMN__ is null then title || ' policy does not allow public access.'
         else title || ' policy contains ' || coalesce(p.statements_num, 0) ||
         ' statement(s) that allow public access.'
