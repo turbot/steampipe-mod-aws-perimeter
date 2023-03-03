@@ -52,9 +52,8 @@ control "api_gateway_rest_api_prohibit_public_access" {
       case
         when endpoint_configuration_types != '["PRIVATE"]' then title || ' endpoint publicly accessible.'
         else title || ' endpoint not publicly accessible.'
-      end reason,
-      region,
-      account_id
+      end reason
+      ${local.common_dimensions_sql}
     from
       aws_api_gateway_rest_api;
   EOT
@@ -78,9 +77,8 @@ control "dms_replication_instance_not_publicly_accessible" {
       case
         when publicly_accessible then title || ' publicly accessible.'
         else title || ' not publicly accessible.'
-      end reason,
-      region,
-      account_id
+      end reason
+      ${local.common_dimensions_sql}
     from
       aws_dms_replication_instance;
   EOT
@@ -157,9 +155,8 @@ control "eks_cluster_endpoint_prohibit_public_access" {
       case
         when resources_vpc_config ->> 'EndpointPublicAccess' = 'true' then title || ' endpoint publicly accessible.'
         else title || ' endpoint not publicly accessible.'
-      end as reason,
-      region,
-      account_id
+      end as reason
+      ${local.common_dimensions_sql}
     from
       aws_eks_cluster;
   EOT
@@ -183,9 +180,8 @@ control "rds_db_instance_prohibit_public_access" {
       case
         when publicly_accessible then title || ' publicly accessible.'
         else title || ' not publicly accessible.'
-      end reason,
-      region,
-      account_id
+      end reason
+      ${local.common_dimensions_sql}
     from
       aws_rds_db_instance;
   EOT
@@ -208,9 +204,8 @@ control "rds_db_cluster_snapshot_prohibit_public_access" {
       case
         when cluster_snapshot -> 'AttributeValues' = '["all"]' then title || ' publicly restorable.'
         else title || ' not publicly restorable.'
-      end reason,
-      region,
-      account_id
+      end reason
+      ${local.common_dimensions_sql}
     from
       aws_rds_db_cluster_snapshot,
       jsonb_array_elements(db_cluster_snapshot_attributes) as cluster_snapshot;
@@ -235,9 +230,8 @@ control "rds_db_snapshot_prohibit_public_access" {
       case
         when database_snapshot -> 'AttributeValues' = '["all"]' then title || ' publicly restorable.'
         else title || ' not publicly restorable.'
-      end reason,
-      region,
-      account_id
+      end reason
+      ${local.common_dimensions_sql}
     from
       aws_rds_db_snapshot,
       jsonb_array_elements(db_snapshot_attributes) as database_snapshot;
@@ -262,9 +256,8 @@ control "redshift_cluster_prohibit_public_access" {
       case
         when publicly_accessible then title || ' publicly accessible.'
         else title || ' not publicly accessible.'
-      end reason,
-      region,
-      account_id
+      end reason
+      ${local.common_dimensions_sql}
     from
       aws_redshift_cluster;
   EOT
@@ -288,9 +281,8 @@ control "sagemaker_notebook_instance_direct_internet_access_disabled" {
       case
         when direct_internet_access = 'Enabled' then title || ' instance has direct internet access enabled.'
         else title || ' instance has direct internet access disabled.'
-      end reason,
-      region,
-      account_id
+      end reason
+      ${local.common_dimensions_sql}
     from
       aws_sagemaker_notebook_instance;
   EOT
@@ -328,8 +320,8 @@ control "s3_public_access_block_account" {
             case when not (ignore_public_acls ) then 'ignore_public_acls' end,
             case when not (restrict_public_buckets) then 'restrict_public_buckets' end
           ) || '.'
-      end as reason,
-      account_id
+      end as reason
+      ${local.common_dimensions_sql}
     from
       aws_s3_account_settings;
   EOT
@@ -367,9 +359,8 @@ control "s3_public_access_block_bucket" {
             case when not ignore_public_acls then 'ignore_public_acls' end,
             case when not restrict_public_buckets then 'restrict_public_buckets' end
           ) || '.'
-      end as reason,
-      region,
-      account_id
+      end as reason
+      ${local.common_dimensions_sql}
     from
       aws_s3_bucket;
 
@@ -407,9 +398,8 @@ control "s3_bucket_acl_prohibit_public_read_access" {
       case
         when d.name is null then b.title || ' not publicly readable.'
         else b.title || ' publicly readable.'
-      end reason,
-      b.region,
-      b.account_id
+      end reason
+      ${replace(local.common_dimensions_qualifier_sql, "__QUALIFIER__", "b.")}
     from
       aws_s3_bucket as b
       left join data as d on b.name = d.name;
@@ -447,9 +437,8 @@ control "s3_bucket_acl_prohibit_public_write_access" {
       case
         when d.name is null then b.title || ' not publicly writable.'
         else b.title || ' publicly writable.'
-      end reason,
-      b.region,
-      b.account_id
+      end reason
+      ${replace(local.common_dimensions_qualifier_sql, "__QUALIFIER__", "b.")}
     from
       aws_s3_bucket as b
       left join data as d on b.name = d.name;
@@ -555,8 +544,8 @@ locals {
 }
 
 locals {
-  resource_policy_public_sql_account = replace(local.resource_policy_public_sql, "__DIMENSIONS__", "r.account_id")
-  resource_policy_public_sql_region  = replace(local.resource_policy_public_sql, "__DIMENSIONS__", "r.region, r.account_id")
+  resource_policy_public_sql_account = replace(local.resource_policy_public_sql, "__DIMENSIONS__", "r._ctx ->> 'connection_name',r.account_id")
+  resource_policy_public_sql_region  = replace(local.resource_policy_public_sql, "__DIMENSIONS__", "r._ctx ->> 'connection_name',r.region, r.account_id")
 }
 
 benchmark "resource_policy_public_access" {
@@ -722,8 +711,8 @@ control "iam_role_trust_policy_prohibit_public_access" {
         when p.arn is null then title || ' trust policy does not allow public access.'
         else title || ' trust policy contains ' || coalesce(p.statements_num, 0) ||
         ' statement(s) that allow public access.'
-      end as reason,
-      r.account_id
+      end as reason
+      ${replace(local.common_dimensions_qualifier_sql, "__QUALIFIER__", "r.")}
     from
       aws_iam_role as r
       left join wildcard_action_policies as p on p.arn = r.arn;

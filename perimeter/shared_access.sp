@@ -94,9 +94,8 @@ control "ram_resource_shared_with_trusted_accounts" {
             else concat(' shared with untrusted account ', untrusted_accounts #>> '{0}', '.')
           end
         else resource || ' shared with trusted account(s).'
-      end as reason,
-      region,
-      account_id
+      end as reason
+      ${local.common_dimensions_sql}
     from
       shared_data;
   EOT
@@ -161,9 +160,8 @@ control "ram_resource_shared_with_trusted_organizations" {
             else concat(' shared with untrusted organization ', untrusted_organization #>> '{0}', '.')
           end
         else resource || ' shared with trusted organizationt(s).'
-      end as reason,
-      region,
-      account_id
+      end as reason
+      ${local.common_dimensions_sql}
     from
       shared_data;
   EOT
@@ -228,9 +226,8 @@ control "ram_resource_shared_with_trusted_organization_units" {
             else concat(' shared with untrusted OU ', untrusted_organization_unit #>> '{0}', '.')
           end
         else resource || ' shared with trusted OU(s).'
-      end as reason,
-      region,
-      account_id
+      end as reason
+      ${local.common_dimensions_sql}
     from
       shared_data;
   EOT
@@ -280,9 +277,8 @@ control "config_aggregator_shared_with_trusted_accounts" {
       case
         when authorized_account_id is null or authorized_account_id = any (($1)::text[]) then title || ' shared with trusted account.'
         else title || ' shared with untrusted account ' || authorized_account_id || '.'
-      end as reason,
-      region,
-      account_id
+      end as reason
+      ${local.common_dimensions_sql}
     from
       aws_config_aggregate_authorization;
   EOT
@@ -361,9 +357,8 @@ control "directory_service_directory_shared_with_trusted_accounts" {
             else concat('untrusted account ', untrusted_accounts #>> '{0}', '.')
           end
         else directory_id || ' shared with trusted account(s).'
-      end as reason,
-      region,
-      account_id
+      end as reason
+      ${local.common_dimensions_sql}
     from
       evaluated_directories;
   EOT
@@ -451,9 +446,8 @@ control "dlm_ebs_snapshot_policy_shared_with_trusted_accounts" {
             else concat('untrusted account ', schedule_3_shared_with_accounts #>> '{0}', '.')
           end
         else policy_id || ' does not create any EBS snapshot shared with untrusted account(s).'
-      end as reason,
-      region,
-      account_id
+      end as reason
+      ${local.common_dimensions_sql}
     from
       dlm_policy_shared_snapshot_copies;
   EOT
@@ -531,9 +525,8 @@ control "ec2_ami_shared_with_trusted_accounts" {
             else concat(' shared with untrusted account ', shared_with_account #>> '{0}', '.')
           end
         else title || ' shared with trusted account(s).'
-      end as reason,
-        region,
-        account_id
+      end as reason
+        ${local.common_dimensions_sql}
     from
       evaluated_amis;
   EOT
@@ -611,9 +604,8 @@ control "ec2_ami_shared_with_trusted_organizations" {
             else concat('untrusted organization ', shared_with_organization #>> '{0}', '.')
           end
         else title || ' shared with trusted organization(s).'
-        end as reason,
-        region,
-        account_id
+        end as reason
+        ${local.common_dimensions_sql}
     from
       evaluated_amis;
   EOT
@@ -691,9 +683,8 @@ control "ec2_ami_shared_with_trusted_organization_units" {
             else concat('untrusted OU ', shared_with_organizational_unit #>> '{0}', '.')
           end
         else title || ' shared with trusted OU(s).'
-      end as reason,
-      region,
-      account_id
+      end as reason
+      ${local.common_dimensions_sql}
     from
       evaluated_amis;
   EOT
@@ -750,9 +741,8 @@ control "ebs_snapshot_shared_with_trusted_accounts" {
         else
           case when list is null then s.title || ' is not shared.'
           else s.title || ' shared with trusted account(s).' end
-      end reason,
-      s.region,
-      s.account_id
+      end reason
+      ${replace(local.common_dimensions_qualifier_sql, "__QUALIFIER__", "s.")}
     from
       aws_ebs_snapshot as s left join shared_ebs_snapshot as ss on s.arn = ss.arn ;
   EOT
@@ -783,9 +773,8 @@ control "guarduty_findings_shared_with_trusted_accounts" {
         title || ' findings shared with trusted administrator account.'
       else
         title || ' findings shared with untrusted administrator account ' || (master_account ->> 'AccountId')::text || '.'
-      end as reason,
-      region,
-      account_id
+      end as reason
+      ${local.common_dimensions_sql}
     from
       aws_guardduty_detector;
   EOT
@@ -882,9 +871,8 @@ control "rds_db_snapshot_shared_with_trusted_accounts" {
             when account_list is null then title || ' is not shared.'
             else title || ' shared with trusted account(s).'
           end
-      end reason,
-      region,
-      account_id
+      end reason
+      ${local.common_dimensions_sql}
     from
       shared_db_snapshot_data);
   EOT
