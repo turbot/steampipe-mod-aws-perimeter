@@ -56,7 +56,8 @@ control "ram_resource_shared_with_trusted_accounts" {
         rpa.associated_entity as "shared_with_principal",
         rsa.status,
         rsa.region,
-        rsa.account_id
+        rsa.account_id,
+        rsa._ctx
       from
         aws_ram_resource_association as rsa
         inner join aws_ram_principal_association as rpa on rsa.resource_share_name = rpa.resource_share_name
@@ -70,13 +71,15 @@ control "ram_resource_shared_with_trusted_accounts" {
         string_to_array(string_agg(shared_with_principal, ','), ',', '') as shared_with_accounts,
         to_jsonb(string_to_array(string_agg(shared_with_principal, ','), ',', '')) - ($1)::text[] as untrusted_accounts,
         region,
-        account_id
+        account_id,
+        _ctx
       FROM
         ram_shared_resources
       group by
         shared_resource,
         region,
-        account_id
+        account_id,
+        _ctx
     )
     select
       resource,
@@ -121,6 +124,7 @@ control "ram_resource_shared_with_trusted_organizations" {
         rpa.associated_entity as "shared_with_organization",
         rsa.status,
         rsa.region,
+        rsa._ctx,
         rsa.account_id,
         split_part((rpa.associated_entity), '/', 1)
       from
@@ -136,12 +140,14 @@ control "ram_resource_shared_with_trusted_organizations" {
         string_to_array(string_agg(shared_with_organization, ','), ',', '') as shared_with_organization,
         to_jsonb(string_to_array(string_agg(split_part(shared_with_organization, '/', 2), ','), ',', '')) - ($1)::text[] as untrusted_organization,
         region,
+        _ctx,
         account_id
       FROM
         ram_shared_resources
       group by
         shared_resource,
         region,
+        _ctx,
         account_id
     )
     select
@@ -188,6 +194,7 @@ control "ram_resource_shared_with_trusted_organization_units" {
         rsa.status,
         rsa.region,
         rsa.account_id,
+        rsa._ctx,
         split_part((rpa.associated_entity), '/', 1)
       from
         aws_ram_resource_association as rsa
@@ -202,12 +209,14 @@ control "ram_resource_shared_with_trusted_organization_units" {
         string_to_array(string_agg(shared_with_organization_unit, ','), ',', '') as shared_with_organization_unit,
         to_jsonb(string_to_array(string_agg(split_part(shared_with_organization_unit, '/', 3), ','), ',', '')) - ($1)::text[] as untrusted_organization_unit,
         region,
+        _ctx,
         account_id
       FROM
         ram_shared_resources
       group by
         shared_resource,
         region,
+        _ctx,
         account_id
     )
     select
@@ -304,6 +313,7 @@ control "directory_service_directory_shared_with_trusted_accounts" {
         shared_directories,
         region,
         title,
+        _ctx,
         account_id
       from
         aws_directory_service_directory
@@ -311,6 +321,7 @@ control "directory_service_directory_shared_with_trusted_accounts" {
         account_id,
         region,
         directory_id,
+        _ctx,
         title
     ),
     directory_data as (
@@ -320,6 +331,7 @@ control "directory_service_directory_shared_with_trusted_accounts" {
         to_jsonb(string_to_array(string_agg(sd ->> 'SharedAccountId', ','), ',')) - ($1)::text[] as untrusted_accounts,
         region,
         title,
+        _ctx,
         account_id
       from
         all_directories,
@@ -327,6 +339,7 @@ control "directory_service_directory_shared_with_trusted_accounts" {
       group by
         directory_id,
         region,
+        _ctx,
         account_id,
         title
     ),
@@ -389,6 +402,7 @@ control "dlm_ebs_snapshot_policy_shared_with_trusted_accounts" {
         (policy_details #> '{Schedules,2,ShareRules,0,TargetAccounts}')::jsonb - ($1)::text[] as schedule_2_shared_with_accounts,
         (policy_details #> '{Schedules,3,ShareRules,0,TargetAccounts}')::jsonb - ($1)::text[] as schedule_3_shared_with_accounts,
         account_id,
+        _ctx,
         region
       from
         aws_dlm_lifecycle_policy
@@ -473,11 +487,13 @@ control "ec2_ami_shared_with_trusted_accounts" {
         public,
         launch_permissions,
         region,
+        _ctx,
         account_id
       from
         aws_ec2_ami
       order by
         account_id,
+        _ctx,
         region,
         title
     ),
@@ -489,12 +505,13 @@ control "ec2_ami_shared_with_trusted_accounts" {
         to_jsonb(string_to_array(string_agg(lp ->> 'UserId', ','), ',')) as shared_account,
         to_jsonb(string_to_array(string_agg(lp ->> 'UserId', ','), ',')) - ($1)::text[] as shared_with_account,
         region,
+        _ctx,
         account_id
       from
         all_amis,
         jsonb_array_elements(launch_permissions) lp
       group by
-        title, public,region,account_id
+        title, public,region,_ctx,account_id
     ),
     evaluated_amis as (
       select
@@ -552,12 +569,14 @@ control "ec2_ami_shared_with_trusted_organizations" {
         public,
         launch_permissions,
         region,
+        _ctx,
         account_id
       from
         aws_ec2_ami
       order by
         account_id,
         region,
+        _ctx,
         title
     ),
     ami_data as (
@@ -568,12 +587,13 @@ control "ec2_ami_shared_with_trusted_organizations" {
         to_jsonb(string_to_array(string_agg(split_part((lp ->> 'OrganizationArn'), '/', 2), ','), ',')) as shared_organization,
         to_jsonb(string_to_array(string_agg(split_part((lp ->> 'OrganizationArn'), '/', 2), ','), ',')) - ($1)::text[] as shared_with_organization,
         region,
+        _ctx,
         account_id
       from
         all_amis,
         jsonb_array_elements(launch_permissions) lp
       group by
-        title, public,region,account_id
+        title, public,region,_ctx,account_id
     ),
     evaluated_amis as (
       select
@@ -631,11 +651,13 @@ control "ec2_ami_shared_with_trusted_organization_units" {
         public,
         launch_permissions,
         region,
+        _ctx,
         account_id
       from
         aws_ec2_ami
       order by
         account_id,
+        _ctx,
         region,
         title
     ),
@@ -647,12 +669,13 @@ control "ec2_ami_shared_with_trusted_organization_units" {
         to_jsonb(string_to_array(string_agg(split_part((lp ->> 'OrganizationalUnitArn'), '/', 3), ','), ',')) as shared_organizational_unit,
         to_jsonb(string_to_array(string_agg(split_part((lp ->> 'OrganizationalUnitArn'), '/', 3), ','), ',')) - ($1)::text[] as shared_with_organizational_unit,
         region,
+        _ctx,
         account_id
       from
         all_amis,
         jsonb_array_elements(launch_permissions) lp
       group by
-        title, public,region,account_id
+        title, public,region,_ctx,account_id
     ),
     evaluated_amis as (
       select
@@ -801,6 +824,7 @@ control "rds_db_snapshot_shared_with_trusted_accounts" {
         (cluster_snapshot ->> 'AttributeValues')::jsonb as account_list,
         (cluster_snapshot ->> 'AttributeValues')::jsonb - ($1)::text[] as untrusted_accounts,
         region,
+        _ctx,
         account_id
       from
         aws_rds_db_cluster_snapshot,
@@ -828,9 +852,8 @@ control "rds_db_snapshot_shared_with_trusted_accounts" {
             when account_list is null then title || ' is not shared.'
             else title || ' shared with trusted account(s).'
           end
-      end reason,
-      region,
-      account_id
+      end reason
+      ${local.common_dimensions_sql}
     from
       shared_cluster_snapshot_data)
 
@@ -843,6 +866,7 @@ control "rds_db_snapshot_shared_with_trusted_accounts" {
         (database_snapshot ->> 'AttributeValues')::jsonb as account_list,
         (database_snapshot ->> 'AttributeValues')::jsonb - ($1)::text[] as untrusted_accounts,
         region,
+        _ctx,
         account_id
       from
         aws_rds_db_snapshot,
