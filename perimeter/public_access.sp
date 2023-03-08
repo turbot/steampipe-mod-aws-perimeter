@@ -94,7 +94,7 @@ control "ebs_snapshot_not_publicly_accessible" {
 
   sql = <<-EOT
     select
-      'arn:' || partition || ':ec2:' || region || ':' || account_id || ':snapshot/' || snapshot_id as resource,
+      arn as resource,
       case
         when create_volume_permissions @> '[{"Group": "all", "UserId": null}]' then 'alarm'
         else 'ok'
@@ -102,9 +102,8 @@ control "ebs_snapshot_not_publicly_accessible" {
       case
         when create_volume_permissions @> '[{"Group": "all", "UserId": null}]' then title || ' publicly restorable.'
         else title || ' not publicly restorable.'
-      end reason,
-      region,
-      '123456789012' as account_id
+      end reason
+      ${local.common_dimensions_sql}
     from
       aws_ebs_snapshot;
   EOT
@@ -129,9 +128,8 @@ control "ec2_instance_ami_prohibit_public_access" {
       case
         when public then title || ' publicly accessible.'
         else title || ' not publicly accessible.'
-      end as reason,
-      region,
-      '123456789012' as account_id
+      end as reason
+      ${local.common_dimensions_sql}
     from
       aws_ec2_ami;
   EOT
