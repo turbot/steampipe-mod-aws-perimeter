@@ -110,9 +110,9 @@ Several benchmarks have [input variables](https://steampipe.io/docs/using-steamp
 
 These are only some of the ways you can set variables. For a full list, please see [Passing Input Variables](https://steampipe.io/docs/using-steampipe/mod-variables#passing-input-variables).
 
-### Common Dimensions
+### Common and Tag Dimensions
 
-The benchmark queries use common properties (like `account_id`, `connection_name` and `region`)that are defined in the form of a default list of strings in the `mod.sp` file. These properties can be overwritten in several ways:
+The benchmark queries use common properties (like `account_id`, `connection_name` and `region`) and tags that are defined in the form of a default list of strings in the `mod.sp` file. These properties can be overwritten in several ways:
 
 - Copy and rename the `steampipe.spvars.example` file to `steampipe.spvars`, and then modify the variable values inside that file
 - Pass in a value on the command line:
@@ -121,10 +121,18 @@ The benchmark queries use common properties (like `account_id`, `connection_name
   steampipe check benchmark.public_access_settings --var 'common_dimensions=["account_id", "connection_name", "region"]'
   ```
 
+  ```shell
+  steampipe check benchmark.public_access_settings --var 'tag_dimensions=["Environment", "Owner"]'
+  ```
+
 - Set an environment variable:
 
   ```shell
   SP_VAR_common_dimensions='["account_id", "connection_name", "region"]' steampipe check control.eks_cluster_endpoint_prohibit_public_access
+  ```
+
+  ```shell
+  SP_VAR_tag_dimensions='["Environment", "Owner"]' steampipe check control.large_ebs_volumes
   ```
 
 ## Contributing
