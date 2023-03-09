@@ -1,5 +1,5 @@
 # Dimensions
-common_dimensions = [ "account_id", "region","connection_name" ]
+common_dimensions = [ "account_id", "region"]
 
 # List of trusted accounts
 trusted_accounts = ["123456789012"]
