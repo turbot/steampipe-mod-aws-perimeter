@@ -53,6 +53,7 @@ control "api_gateway_rest_api_prohibit_public_access" {
         when endpoint_configuration_types != '["PRIVATE"]' then title || ' endpoint publicly accessible.'
         else title || ' endpoint not publicly accessible.'
       end reason
+      ${local.tag_dimensions_sql}
       ${local.common_dimensions_sql}
     from
       aws_api_gateway_rest_api;
@@ -78,6 +79,7 @@ control "dms_replication_instance_not_publicly_accessible" {
         when publicly_accessible then title || ' publicly accessible.'
         else title || ' not publicly accessible.'
       end reason
+      ${local.tag_dimensions_sql}
       ${local.common_dimensions_sql}
     from
       aws_dms_replication_instance;
@@ -103,6 +105,7 @@ control "ebs_snapshot_not_publicly_accessible" {
         when create_volume_permissions @> '[{"Group": "all", "UserId": null}]' then title || ' publicly restorable.'
         else title || ' not publicly restorable.'
       end reason
+      ${local.tag_dimensions_sql}
       ${local.common_dimensions_sql}
     from
       aws_ebs_snapshot;
@@ -129,6 +132,7 @@ control "ec2_instance_ami_prohibit_public_access" {
         when public then title || ' publicly accessible.'
         else title || ' not publicly accessible.'
       end as reason
+      ${local.tag_dimensions_sql}
       ${local.common_dimensions_sql}
     from
       aws_ec2_ami;
@@ -154,6 +158,7 @@ control "eks_cluster_endpoint_prohibit_public_access" {
         when resources_vpc_config ->> 'EndpointPublicAccess' = 'true' then title || ' endpoint publicly accessible.'
         else title || ' endpoint not publicly accessible.'
       end as reason
+      ${local.tag_dimensions_sql}
       ${local.common_dimensions_sql}
     from
       aws_eks_cluster;
@@ -179,6 +184,7 @@ control "rds_db_instance_prohibit_public_access" {
         when publicly_accessible then title || ' publicly accessible.'
         else title || ' not publicly accessible.'
       end reason
+      ${local.tag_dimensions_sql}
       ${local.common_dimensions_sql}
     from
       aws_rds_db_instance;
@@ -203,6 +209,7 @@ control "rds_db_cluster_snapshot_prohibit_public_access" {
         when cluster_snapshot -> 'AttributeValues' = '["all"]' then title || ' publicly restorable.'
         else title || ' not publicly restorable.'
       end reason
+      ${local.tag_dimensions_sql}
       ${local.common_dimensions_sql}
     from
       aws_rds_db_cluster_snapshot,
@@ -229,6 +236,7 @@ control "rds_db_snapshot_prohibit_public_access" {
         when database_snapshot -> 'AttributeValues' = '["all"]' then title || ' publicly restorable.'
         else title || ' not publicly restorable.'
       end reason
+      ${local.tag_dimensions_sql}
       ${local.common_dimensions_sql}
     from
       aws_rds_db_snapshot,
@@ -255,6 +263,7 @@ control "redshift_cluster_prohibit_public_access" {
         when publicly_accessible then title || ' publicly accessible.'
         else title || ' not publicly accessible.'
       end reason
+      ${local.tag_dimensions_sql}
       ${local.common_dimensions_sql}
     from
       aws_redshift_cluster;
@@ -280,6 +289,7 @@ control "sagemaker_notebook_instance_direct_internet_access_disabled" {
         when direct_internet_access = 'Enabled' then title || ' instance has direct internet access enabled.'
         else title || ' instance has direct internet access disabled.'
       end reason
+      ${local.tag_dimensions_sql}
       ${local.common_dimensions_sql}
     from
       aws_sagemaker_notebook_instance;
@@ -319,6 +329,7 @@ control "s3_public_access_block_account" {
             case when not (restrict_public_buckets) then 'restrict_public_buckets' end
           ) || '.'
       end as reason
+      ${local.tag_dimensions_sql}
       ${local.common_dimensions_sql}
     from
       aws_s3_account_settings;
@@ -358,6 +369,7 @@ control "s3_public_access_block_bucket" {
             case when not restrict_public_buckets then 'restrict_public_buckets' end
           ) || '.'
       end as reason
+      ${local.tag_dimensions_sql}
       ${local.common_dimensions_sql}
     from
       aws_s3_bucket;
@@ -397,6 +409,7 @@ control "s3_bucket_acl_prohibit_public_read_access" {
         when d.name is null then b.title || ' not publicly readable.'
         else b.title || ' publicly readable.'
       end reason
+      ${local.tag_dimensions_sql}
       ${replace(local.common_dimensions_qualifier_sql, "__QUALIFIER__", "b.")}
     from
       aws_s3_bucket as b
@@ -436,6 +449,7 @@ control "s3_bucket_acl_prohibit_public_write_access" {
         when d.name is null then b.title || ' not publicly writable.'
         else b.title || ' publicly writable.'
       end reason
+      ${local.tag_dimensions_sql}
       ${replace(local.common_dimensions_qualifier_sql, "__QUALIFIER__", "b.")}
     from
       aws_s3_bucket as b
@@ -533,18 +547,19 @@ locals {
         when p.__ARN_COLUMN__ is null then title || ' policy does not allow public access.'
         else title || ' policy contains ' || coalesce(p.statements_num, 0) ||
         ' statement(s) that allow public access.'
-      end as reason,
-      __DIMENSIONS__
+      end as reason
+      ${local.tag_dimensions_sql}
+      ${local.common_dimensions_sql}
     from
       __TABLE_NAME__ as r
       left join wildcard_action_policies as p on p.__ARN_COLUMN__ = r.__ARN_COLUMN__
   EOT
 }
 
-locals {
-  resource_policy_public_sql_account = replace(local.resource_policy_public_sql, "__DIMENSIONS__", "r._ctx ->> 'connection_name',r.account_id")
-  resource_policy_public_sql_region  = replace(local.resource_policy_public_sql, "__DIMENSIONS__", "r._ctx ->> 'connection_name',r.region, r.account_id")
-}
+// locals {
+//   resource_policy_public_sql_account = replace(local.resource_policy_public_sql, "__DIMENSIONS__", "r._ctx ->> 'connection_name',r.account_id")
+//   resource_policy_public_sql_region  = replace(local.resource_policy_public_sql, "__DIMENSIONS__", "r._ctx ->> 'connection_name',r.region, r.account_id")
+// }
 
 benchmark "resource_policy_public_access" {
   title         = "Resource Policy Public Access"
@@ -569,7 +584,7 @@ benchmark "resource_policy_public_access" {
 control "ecr_repository_policy_prohibit_public_access" {
   title       = "ECR repository policies should prohibit public access"
   description = "Check if ECR repository policies allow public access."
-  sql         = replace(replace(local.resource_policy_public_sql_region, "__TABLE_NAME__", "aws_ecr_repository"), "__ARN_COLUMN__", "arn")
+  sql         = replace(replace(local.resource_policy_public_sql, "__TABLE_NAME__", "aws_ecr_repository"), "__ARN_COLUMN__", "arn")
 
   tags = merge(local.aws_perimeter_common_tags, {
     service = "AWS/ECR"
@@ -579,7 +594,7 @@ control "ecr_repository_policy_prohibit_public_access" {
 control "lambda_function_policy_prohibit_public_access" {
   title       = "Lambda function policies should prohibit public access"
   description = "Check if Lambda function policies allow public access."
-  sql         = replace(replace(local.resource_policy_public_sql_region, "__TABLE_NAME__", "aws_lambda_function"), "__ARN_COLUMN__", "arn")
+  sql         = replace(replace(local.resource_policy_public_sql, "__TABLE_NAME__", "aws_lambda_function"), "__ARN_COLUMN__", "arn")
 
   tags = merge(local.aws_perimeter_common_tags, {
     service = "AWS/Lambda"
@@ -589,7 +604,7 @@ control "lambda_function_policy_prohibit_public_access" {
 control "s3_bucket_policy_prohibit_public_access" {
   title       = "S3 bucket policies should prohibit public access"
   description = "Check if S3 bucket policies allow public access."
-  sql         = replace(replace(local.resource_policy_public_sql_region, "__TABLE_NAME__", "aws_s3_bucket"), "__ARN_COLUMN__", "arn")
+  sql         = replace(replace(local.resource_policy_public_sql, "__TABLE_NAME__", "aws_s3_bucket"), "__ARN_COLUMN__", "arn")
 
   tags = merge(local.aws_perimeter_common_tags, {
     service = "AWS/S3"
@@ -599,7 +614,7 @@ control "s3_bucket_policy_prohibit_public_access" {
 control "sns_topic_policy_prohibit_public_access" {
   title       = "SNS topic policies should prohibit public access"
   description = "Check if SNS topic policies allow public access."
-  sql         = replace(replace(local.resource_policy_public_sql_region, "__TABLE_NAME__", "aws_sns_topic"), "__ARN_COLUMN__", "topic_arn")
+  sql         = replace(replace(local.resource_policy_public_sql, "__TABLE_NAME__", "aws_sns_topic"), "__ARN_COLUMN__", "topic_arn")
 
   tags = merge(local.aws_perimeter_common_tags, {
     service = "AWS/SNS"
@@ -609,7 +624,7 @@ control "sns_topic_policy_prohibit_public_access" {
 control "sqs_queue_policy_prohibit_public_access" {
   title       = "SQS queue policies should prohibit public access"
   description = "Check if SQS queue policies allow public access."
-  sql         = replace(replace(local.resource_policy_public_sql_region, "__TABLE_NAME__", "aws_sqs_queue"), "__ARN_COLUMN__", "queue_arn")
+  sql         = replace(replace(local.resource_policy_public_sql, "__TABLE_NAME__", "aws_sqs_queue"), "__ARN_COLUMN__", "queue_arn")
 
   tags = merge(local.aws_perimeter_common_tags, {
     service = "AWS/SQS"
@@ -619,7 +634,7 @@ control "sqs_queue_policy_prohibit_public_access" {
 control "glacier_vault_policy_prohibit_public_access" {
   title       = "Glacier vault policies should prohibit public access"
   description = "Check if Glacier vault policies allow public access."
-  sql         = replace(replace(local.resource_policy_public_sql_region, "__TABLE_NAME__", "aws_glacier_vault"), "__ARN_COLUMN__", "vault_arn")
+  sql         = replace(replace(local.resource_policy_public_sql, "__TABLE_NAME__", "aws_glacier_vault"), "__ARN_COLUMN__", "vault_arn")
 
   tags = merge(local.aws_perimeter_common_tags, {
     service = "AWS/Glacier"
@@ -710,6 +725,7 @@ control "iam_role_trust_policy_prohibit_public_access" {
         else title || ' trust policy contains ' || coalesce(p.statements_num, 0) ||
         ' statement(s) that allow public access.'
       end as reason
+      ${local.tag_dimensions_sql}
       ${replace(local.common_dimensions_qualifier_sql, "__QUALIFIER__", "r.")}
     from
       aws_iam_role as r
@@ -724,7 +740,7 @@ control "iam_role_trust_policy_prohibit_public_access" {
 control "kms_key_policy_prohibit_public_access" {
   title       = "KMS key policies should prohibit public access"
   description = "Check if KMS key policies allow public access."
-  sql         = format("%s %s", replace(replace(local.resource_policy_public_sql_region, "__TABLE_NAME__", "aws_kms_key"), "__ARN_COLUMN__", "arn"), "where key_manager = 'CUSTOMER'")
+  sql         = format("%s %s", replace(replace(local.resource_policy_public_sql, "__TABLE_NAME__", "aws_kms_key"), "__ARN_COLUMN__", "arn"), "where key_manager = 'CUSTOMER'")
 
   tags = merge(local.aws_perimeter_common_tags, {
     service = "AWS/KMS"

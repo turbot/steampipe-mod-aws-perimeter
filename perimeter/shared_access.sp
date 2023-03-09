@@ -98,6 +98,7 @@ control "ram_resource_shared_with_trusted_accounts" {
           end
         else resource || ' shared with trusted account(s).'
       end as reason
+      ${local.tag_dimensions_sql}
       ${local.common_dimensions_sql}
     from
       shared_data;
@@ -167,6 +168,7 @@ control "ram_resource_shared_with_trusted_organizations" {
           end
         else resource || ' shared with trusted organizationt(s).'
       end as reason
+      ${local.tag_dimensions_sql}
       ${local.common_dimensions_sql}
     from
       shared_data;
@@ -236,6 +238,7 @@ control "ram_resource_shared_with_trusted_organization_units" {
           end
         else resource || ' shared with trusted OU(s).'
       end as reason
+      ${local.tag_dimensions_sql}
       ${local.common_dimensions_sql}
     from
       shared_data;
@@ -287,6 +290,7 @@ control "config_aggregator_shared_with_trusted_accounts" {
         when authorized_account_id is null or authorized_account_id = any (($1)::text[]) then title || ' shared with trusted account.'
         else title || ' shared with untrusted account ' || authorized_account_id || '.'
       end as reason
+      ${local.tag_dimensions_sql}
       ${local.common_dimensions_sql}
     from
       aws_config_aggregate_authorization;
@@ -371,6 +375,7 @@ control "directory_service_directory_shared_with_trusted_accounts" {
           end
         else directory_id || ' shared with trusted account(s).'
       end as reason
+      ${local.tag_dimensions_sql}
       ${local.common_dimensions_sql}
     from
       evaluated_directories;
@@ -461,6 +466,7 @@ control "dlm_ebs_snapshot_policy_shared_with_trusted_accounts" {
           end
         else policy_id || ' does not create any EBS snapshot shared with untrusted account(s).'
       end as reason
+      ${local.tag_dimensions_sql}
       ${local.common_dimensions_sql}
     from
       dlm_policy_shared_snapshot_copies;
@@ -543,6 +549,7 @@ control "ec2_ami_shared_with_trusted_accounts" {
           end
         else title || ' shared with trusted account(s).'
       end as reason
+        ${local.tag_dimensions_sql}
         ${local.common_dimensions_sql}
     from
       evaluated_amis;
@@ -625,6 +632,7 @@ control "ec2_ami_shared_with_trusted_organizations" {
           end
         else title || ' shared with trusted organization(s).'
         end as reason
+        ${local.tag_dimensions_sql}
         ${local.common_dimensions_sql}
     from
       evaluated_amis;
@@ -707,6 +715,7 @@ control "ec2_ami_shared_with_trusted_organization_units" {
           end
         else title || ' shared with trusted OU(s).'
       end as reason
+      ${local.tag_dimensions_sql}
       ${local.common_dimensions_sql}
     from
       evaluated_amis;
@@ -765,6 +774,7 @@ control "ebs_snapshot_shared_with_trusted_accounts" {
           case when list is null then s.title || ' is not shared.'
           else s.title || ' shared with trusted account(s).' end
       end reason
+      ${local.tag_dimensions_sql}
       ${replace(local.common_dimensions_qualifier_sql, "__QUALIFIER__", "s.")}
     from
       aws_ebs_snapshot as s left join shared_ebs_snapshot as ss on s.arn = ss.arn ;
@@ -797,6 +807,7 @@ control "guarduty_findings_shared_with_trusted_accounts" {
       else
         title || ' findings shared with untrusted administrator account ' || (master_account ->> 'AccountId')::text || '.'
       end as reason
+      ${local.tag_dimensions_sql}
       ${local.common_dimensions_sql}
     from
       aws_guardduty_detector;
@@ -853,6 +864,7 @@ control "rds_db_snapshot_shared_with_trusted_accounts" {
             else title || ' shared with trusted account(s).'
           end
       end reason
+      ${local.tag_dimensions_sql}
       ${local.common_dimensions_sql}
     from
       shared_cluster_snapshot_data)
@@ -896,6 +908,7 @@ control "rds_db_snapshot_shared_with_trusted_accounts" {
             else title || ' shared with trusted account(s).'
           end
       end reason
+      ${local.tag_dimensions_sql}
       ${local.common_dimensions_sql}
     from
       shared_db_snapshot_data);

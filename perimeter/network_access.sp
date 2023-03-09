@@ -50,6 +50,7 @@ control "ec2_instance_in_vpc" {
         when vpc_id is null then title || ' not in VPC.'
         else title || ' in VPC.'
       end as reason
+      ${local.tag_dimensions_sql}
       ${local.common_dimensions_sql}
     from
       aws_ec2_instance;
@@ -82,6 +83,7 @@ control "elb_application_lb_waf_enabled" {
         when ar.arns is not null then title || ' WAF enabled.'
         else title || ' WAF disabled.'
       end as reason
+      ${local.tag_dimensions_sql}
       ${local.common_dimensions_sql}
     from
       aws_ec2_application_load_balancer as lb
@@ -108,6 +110,7 @@ control "es_domain_in_vpc" {
         when vpc_options ->> 'VPCId' is null then title || ' not in VPC.'
         else title || ' in VPC ' || (vpc_options ->> 'VPCId') || '.'
       end reason
+      ${local.tag_dimensions_sql}
       ${local.common_dimensions_sql}
     from
       aws_elasticsearch_domain;
@@ -133,6 +136,7 @@ control "lambda_function_in_vpc" {
         when vpc_id is null then title || ' is not in VPC.'
         else title || ' is in VPC ' || vpc_id || '.'
       end reason
+      ${local.tag_dimensions_sql}
       ${local.common_dimensions_sql}
     from
       aws_lambda_function;
@@ -179,6 +183,7 @@ control "opensearch_domain_in_vpc" {
         when d.vpc_options ->> 'VPCId' is not null and p.arn is not null then title || ' attached to public subnet.'
         else title || ' in VPC ' || (vpc_options ->> 'VPCId') || '.'
       end reason
+      ${local.tag_dimensions_sql}
       ${replace(local.common_dimensions_qualifier_sql, "__QUALIFIER__", "d.")}
     from
       aws_opensearch_domain as d
@@ -205,6 +210,7 @@ control "rds_db_instance_in_vpc" {
         when vpc_id is null then title || ' not in VPC.'
         else title || ' in VPC ' || vpc_id || '.'
       end as reason
+      ${local.tag_dimensions_sql}
       ${local.common_dimensions_sql}
     from
       aws_rds_db_instance;
@@ -230,6 +236,7 @@ control "sagemaker_model_in_vpc" {
         when vpc_config is not null then title || ' in VPC.'
         else title || ' not in VPC.'
       end as reason
+      ${local.tag_dimensions_sql}
       ${local.common_dimensions_sql}
     from
       aws_sagemaker_model;
@@ -255,6 +262,7 @@ control "sagemaker_notebook_instance_in_vpc" {
         when subnet_id is not null then title || ' in VPC.'
         else title || ' not in VPC.'
       end as reason
+      ${local.tag_dimensions_sql}
       ${local.common_dimensions_sql}
     from
       aws_sagemaker_notebook_instance;
@@ -280,6 +288,7 @@ control "sagemaker_training_job_in_vpc" {
         when vpc_config is not null then title || ' in VPC.'
         else title || ' not in VPC.'
       end reason
+      ${local.tag_dimensions_sql}
       ${local.common_dimensions_sql}
     from
       aws_sagemaker_training_job;
@@ -305,6 +314,7 @@ control "vpc_peering_connection_cross_account_shared" {
         when accepter_owner_id = requester_owner_id or accepter_owner_id = any (($1)::text[]) then title || ' is peered with a trust account.'
         else title || ' is peered with untrusted account ' || accepter_owner_id || '.'
       end reason
+      ${local.tag_dimensions_sql}
       ${local.common_dimensions_sql}
     from
       aws_vpc_peering_connection;
@@ -368,6 +378,7 @@ control "vpc_security_group_restrict_ingress_tcp_udp_all" {
         when bad_rules.group_id is null then sg.group_id || ' does not allow ingress to TCP or UDP ports from 0.0.0.0/0.'
         else sg.group_id || ' contains ' || bad_rules.num_bad_rules || ' rule(s) that allow ingress to TCP or UDP ports from 0.0.0.0/0.'
       end as reason
+      ${local.tag_dimensions_sql}
       ${replace(local.common_dimensions_qualifier_sql, "__QUALIFIER__", "sg.")}
     from
       aws_vpc_security_group as sg
@@ -490,6 +501,7 @@ control "vpc_security_group_restrict_ingress_common_ports_all" {
         when ingress_ssh_rules.group_id is null then sg.group_id || ' ingress restricted for common ports from 0.0.0.0/0 and ::/0.'
         else sg.group_id || ' contains ' || ingress_ssh_rules.num_ssh_rules || ' ingress rule(s) allowing access for common ports from 0.0.0.0/0 and ::/0.'
       end as reason
+      ${local.tag_dimensions_sql}
       ${replace(local.common_dimensions_qualifier_sql, "__QUALIFIER__", "sg.")}
     from
       aws_vpc_security_group as sg
@@ -534,6 +546,7 @@ control "autoscaling_launch_config_public_ip_disabled" {
         when associate_public_ip_address then title || ' associate public IP addresses.'
         else title || ' do not associate public IP addresses.'
       end as reason
+      ${local.tag_dimensions_sql}
       ${local.common_dimensions_sql}
     from
       aws_ec2_launch_configuration;
@@ -559,6 +572,7 @@ control "ec2_instance_not_publicly_accessible" {
         when public_ip_address is null then instance_id || ' not publicly accessible.'
         else instance_id || ' publicly accessible.'
       end reason
+      ${local.tag_dimensions_sql}
       ${local.common_dimensions_sql}
     from
       aws_ec2_instance;
@@ -584,6 +598,7 @@ control "ec2_network_interface_not_publicly_accessible" {
         when association_public_ip is null then network_interface_id || ' not publicly accessible.'
         else network_interface_id || ' publicly accessible.'
       end reason
+      ${local.tag_dimensions_sql}
       ${local.common_dimensions_sql}
     from
       aws_ec2_network_interface;
@@ -621,6 +636,7 @@ control "ecs_service_not_publicly_accessible" {
         when network_configuration -> 'AwsvpcConfiguration' ->> 'AssignPublicIp' = 'DISABLED' then a.title || ' not publicly accessible.'
         else a.title || ' publicly accessible.'
       end as reason
+      ${local.tag_dimensions_sql}
       ${local.common_dimensions_sql}
     from
       aws_ecs_service as a
@@ -649,6 +665,7 @@ control "emr_cluster_master_nodes_no_public_ip" {
         when s.map_public_ip_on_launch then c.title || ' master nodes assigned with public IP.'
         else c.title || ' master nodes not assigned with public IP.'
       end as reason
+      ${local.tag_dimensions_sql}
       ${replace(local.common_dimensions_qualifier_sql, "__QUALIFIER__", "c.")}
     from
       aws_emr_cluster as c
@@ -675,6 +692,7 @@ control "vpc_subnet_auto_assign_public_ip_disabled" {
         when map_public_ip_on_launch = 'false' then title || ' auto-assign public IP addresses disabled.'
         else title || ' auto-assign public IP addresses enabled.'
       end as reason
+      ${local.tag_dimensions_sql}
       ${local.common_dimensions_sql}
     from
       aws_vpc_subnet;

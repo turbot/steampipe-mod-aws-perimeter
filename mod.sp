@@ -17,6 +17,16 @@ variable "common_dimensions" {
   default     = [ "account_id", "region"]
 }
 
+variable "tag_dimensions" {
+  type        = list(string)
+  description = "A list of tags to add as dimensions to each control."
+  # A list of tag names to include as dimensions for resources that support
+  # tags (e.g. "Owner", "Environment"). Default to empty since tag names are
+  # a personal choice - for commonly used tag names see
+  # https://docs.aws.amazon.com/general/latest/gr/aws_tagging.html#tag-categories
+  default     = []
+}
+
 locals {
   # Local internal variable to build the SQL select clause for common
   # dimensions using a table name qualifier if required. Do not edit directly.
@@ -24,6 +34,12 @@ locals {
   %{~ if contains(var.common_dimensions, "connection_name") }, __QUALIFIER___ctx ->> 'connection_name'%{ endif ~}
   %{~ if contains(var.common_dimensions, "region") }, __QUALIFIER__region%{ endif ~}
   %{~ if contains(var.common_dimensions, "account_id") }, __QUALIFIER__account_id%{ endif ~}
+  EOQ
+
+  # Local internal variable to build the SQL select clause for tag
+  # dimensions. Do not edit directly.
+  tag_dimensions_sql = <<-EOQ
+  %{~ for dim in var.tag_dimensions }, tags ->> '${dim}' as "${replace(dim, "\"", "\"\"")}"%{ endfor ~}
   EOQ
 }
 

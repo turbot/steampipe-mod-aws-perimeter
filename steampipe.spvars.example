@@ -1,5 +1,6 @@
 # Dimensions
 common_dimensions = [ "account_id", "region"]
+tag_dimensions    = []
 
 # List of trusted accounts
 trusted_accounts = ["123456789012"]
