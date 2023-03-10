@@ -98,7 +98,6 @@ control "ram_resource_shared_with_trusted_accounts" {
           end
         else resource || ' shared with trusted account(s).'
       end as reason
-      ${local.tag_dimensions_sql}
       ${local.common_dimensions_sql}
     from
       shared_data;
@@ -168,7 +167,6 @@ control "ram_resource_shared_with_trusted_organizations" {
           end
         else resource || ' shared with trusted organizationt(s).'
       end as reason
-      ${local.tag_dimensions_sql}
       ${local.common_dimensions_sql}
     from
       shared_data;
@@ -238,7 +236,6 @@ control "ram_resource_shared_with_trusted_organization_units" {
           end
         else resource || ' shared with trusted OU(s).'
       end as reason
-      ${local.tag_dimensions_sql}
       ${local.common_dimensions_sql}
     from
       shared_data;
@@ -318,6 +315,7 @@ control "directory_service_directory_shared_with_trusted_accounts" {
         region,
         title,
         _ctx,
+        tags,
         account_id
       from
         aws_directory_service_directory
@@ -326,6 +324,7 @@ control "directory_service_directory_shared_with_trusted_accounts" {
         region,
         directory_id,
         _ctx,
+        tags,
         title
     ),
     directory_data as (
@@ -336,6 +335,7 @@ control "directory_service_directory_shared_with_trusted_accounts" {
         region,
         title,
         _ctx,
+        tags,
         account_id
       from
         all_directories,
@@ -344,6 +344,7 @@ control "directory_service_directory_shared_with_trusted_accounts" {
         directory_id,
         region,
         _ctx,
+        tags,
         account_id,
         title
     ),
@@ -408,7 +409,8 @@ control "dlm_ebs_snapshot_policy_shared_with_trusted_accounts" {
         (policy_details #> '{Schedules,3,ShareRules,0,TargetAccounts}')::jsonb - ($1)::text[] as schedule_3_shared_with_accounts,
         account_id,
         _ctx,
-        region
+        region,
+        tags
       from
         aws_dlm_lifecycle_policy
       where
@@ -494,6 +496,7 @@ control "ec2_ami_shared_with_trusted_accounts" {
         launch_permissions,
         region,
         _ctx,
+        tags,
         account_id
       from
         aws_ec2_ami
@@ -501,6 +504,7 @@ control "ec2_ami_shared_with_trusted_accounts" {
         account_id,
         _ctx,
         region,
+        tags,
         title
     ),
     ami_data as (
@@ -512,12 +516,18 @@ control "ec2_ami_shared_with_trusted_accounts" {
         to_jsonb(string_to_array(string_agg(lp ->> 'UserId', ','), ',')) - ($1)::text[] as shared_with_account,
         region,
         _ctx,
+        tags,
         account_id
       from
         all_amis,
         jsonb_array_elements(launch_permissions) lp
       group by
-        title, public,region,_ctx,account_id
+        title, 
+        public,
+        region,
+        _ctx,
+        account_id,
+        tags
     ),
     evaluated_amis as (
       select
@@ -577,6 +587,7 @@ control "ec2_ami_shared_with_trusted_organizations" {
         launch_permissions,
         region,
         _ctx,
+        tags,
         account_id
       from
         aws_ec2_ami
@@ -584,6 +595,7 @@ control "ec2_ami_shared_with_trusted_organizations" {
         account_id,
         region,
         _ctx,
+        tags,
         title
     ),
     ami_data as (
@@ -660,6 +672,7 @@ control "ec2_ami_shared_with_trusted_organization_units" {
         launch_permissions,
         region,
         _ctx,
+        tags,
         account_id
       from
         aws_ec2_ami
@@ -667,6 +680,7 @@ control "ec2_ami_shared_with_trusted_organization_units" {
         account_id,
         _ctx,
         region,
+        tags,
         title
     ),
     ami_data as (
@@ -678,12 +692,13 @@ control "ec2_ami_shared_with_trusted_organization_units" {
         to_jsonb(string_to_array(string_agg(split_part((lp ->> 'OrganizationalUnitArn'), '/', 3), ','), ',')) - ($1)::text[] as shared_with_organizational_unit,
         region,
         _ctx,
+        tags,
         account_id
       from
         all_amis,
         jsonb_array_elements(launch_permissions) lp
       group by
-        title, public,region,_ctx,account_id
+        title, public,region,_ctx,account_id,tags
     ),
     evaluated_amis as (
       select
@@ -836,6 +851,7 @@ control "rds_db_snapshot_shared_with_trusted_accounts" {
         (cluster_snapshot ->> 'AttributeValues')::jsonb - ($1)::text[] as untrusted_accounts,
         region,
         _ctx,
+        tags,
         account_id
       from
         aws_rds_db_cluster_snapshot,
@@ -879,6 +895,7 @@ control "rds_db_snapshot_shared_with_trusted_accounts" {
         (database_snapshot ->> 'AttributeValues')::jsonb - ($1)::text[] as untrusted_accounts,
         region,
         _ctx,
+        tags,
         account_id
       from
         aws_rds_db_snapshot,

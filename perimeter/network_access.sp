@@ -27,7 +27,7 @@ benchmark "network_general_access" {
     control.sagemaker_model_in_vpc,
     control.sagemaker_notebook_instance_in_vpc,
     control.sagemaker_training_job_in_vpc,
-    control.vpc_peering_connection_cross_account_shared,
+    control.vpc_peering_connection_cross_account_shared
   ]
 
   tags = merge(local.aws_perimeter_common_tags, {
@@ -546,7 +546,6 @@ control "autoscaling_launch_config_public_ip_disabled" {
         when associate_public_ip_address then title || ' associate public IP addresses.'
         else title || ' do not associate public IP addresses.'
       end as reason
-      ${local.tag_dimensions_sql}
       ${local.common_dimensions_sql}
     from
       aws_ec2_launch_configuration;
@@ -665,7 +664,7 @@ control "emr_cluster_master_nodes_no_public_ip" {
         when s.map_public_ip_on_launch then c.title || ' master nodes assigned with public IP.'
         else c.title || ' master nodes not assigned with public IP.'
       end as reason
-      ${local.tag_dimensions_sql}
+      ${replace(local.tag_dimensions_qualifier_sql, "__QUALIFIER__", "c.")}
       ${replace(local.common_dimensions_qualifier_sql, "__QUALIFIER__", "c.")}
     from
       aws_emr_cluster as c

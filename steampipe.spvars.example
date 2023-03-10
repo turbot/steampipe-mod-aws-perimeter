@@ -1,5 +1,5 @@
 # Dimensions
-common_dimensions = [ "account_id", "region"]
+common_dimensions = ["account_id", "region"]
 tag_dimensions    = []
 
 # List of trusted accounts

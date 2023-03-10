@@ -31,22 +31,23 @@ locals {
   # Local internal variable to build the SQL select clause for common
   # dimensions using a table name qualifier if required. Do not edit directly.
   common_dimensions_qualifier_sql = <<-EOQ
-  %{~ if contains(var.common_dimensions, "connection_name") }, __QUALIFIER___ctx ->> 'connection_name'%{ endif ~}
+  %{~ if contains(var.common_dimensions, "connection_name") }, __QUALIFIER___ctx ->> 'connection_name' as connection_name%{ endif ~}
   %{~ if contains(var.common_dimensions, "region") }, __QUALIFIER__region%{ endif ~}
   %{~ if contains(var.common_dimensions, "account_id") }, __QUALIFIER__account_id%{ endif ~}
   EOQ
 
   # Local internal variable to build the SQL select clause for tag
   # dimensions. Do not edit directly.
-  tag_dimensions_sql = <<-EOQ
-  %{~ for dim in var.tag_dimensions }, tags ->> '${dim}' as "${replace(dim, "\"", "\"\"")}"%{ endfor ~}
+  tag_dimensions_qualifier_sql = <<-EOQ
+  %{~ for dim in var.tag_dimensions },  __QUALIFIER__tags ->> '${dim}' as "${replace(dim, "\"", "\"\"")}"%{ endfor ~}
   EOQ
 }
 
 locals {
   # Local internal variable with the full SQL select clause for common
-  # dimensions. Do not edit directly.
+  # dimensions and tags. Do not edit directly.
   common_dimensions_sql = replace(local.common_dimensions_qualifier_sql, "__QUALIFIER__", "")
+  tag_dimensions_sql = replace(local.tag_dimensions_qualifier_sql, "__QUALIFIER__", "")
 }
 
 mod "aws_perimeter" {

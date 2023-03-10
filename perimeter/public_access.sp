@@ -329,7 +329,6 @@ control "s3_public_access_block_account" {
             case when not (restrict_public_buckets) then 'restrict_public_buckets' end
           ) || '.'
       end as reason
-      ${local.tag_dimensions_sql}
       ${local.common_dimensions_sql}
     from
       aws_s3_account_settings;
@@ -555,11 +554,6 @@ locals {
       left join wildcard_action_policies as p on p.__ARN_COLUMN__ = r.__ARN_COLUMN__
   EOT
 }
-
-// locals {
-//   resource_policy_public_sql_account = replace(local.resource_policy_public_sql, "__DIMENSIONS__", "r._ctx ->> 'connection_name',r.account_id")
-//   resource_policy_public_sql_region  = replace(local.resource_policy_public_sql, "__DIMENSIONS__", "r._ctx ->> 'connection_name',r.region, r.account_id")
-// }
 
 benchmark "resource_policy_public_access" {
   title         = "Resource Policy Public Access"
