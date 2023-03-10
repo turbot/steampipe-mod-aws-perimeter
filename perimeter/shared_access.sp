@@ -49,7 +49,7 @@ control "ram_resource_shared_with_trusted_accounts" {
   title       = "Resources shared through RAM should only be shared with trusted accounts"
   description = "AWS Resource Access Manager (RAM) helps you securely share your resources across AWS accounts, organizational units (OUs), and organizations for supported resource types. Check if you share resources with an account that is not part of the trusted list of accounts."
 
-  sql = <<-EOT
+  sql = <<-EOQ
     with ram_shared_resources as (
       select distinct
         rsa.associated_entity as "shared_resource",
@@ -101,7 +101,7 @@ control "ram_resource_shared_with_trusted_accounts" {
       ${local.common_dimensions_sql}
     from
       shared_data;
-  EOT
+  EOQ
 
   param "trusted_accounts" {
     description = "A list of trusted accounts."
@@ -117,7 +117,7 @@ control "ram_resource_shared_with_trusted_organizations" {
   title       = "Resources shared through RAM should only be shared with trusted organizations"
   description = "AWS Resource Access Manager (RAM) helps you securely share your resources across AWS accounts, organizational units (OUs), and organizations for supported resource types. Check if you share resources with an account that is not part of the trusted list of organizations."
 
-  sql = <<-EOT
+  sql = <<-EOQ
     with ram_shared_resources as (
       select distinct
         rsa.associated_entity as "shared_resource",
@@ -170,7 +170,7 @@ control "ram_resource_shared_with_trusted_organizations" {
       ${local.common_dimensions_sql}
     from
       shared_data;
-  EOT
+  EOQ
 
   param "trusted_organizations" {
     description = "A list of trusted organizations."
@@ -186,7 +186,7 @@ control "ram_resource_shared_with_trusted_organization_units" {
   title       = "Resources shared through RAM should only be shared with trusted OUs"
   description = "AWS Resource Access Manager (RAM) helps you securely share your resources across AWS accounts, organizational units (OUs), and organizations for supported resource types. Check if you share resources with an account that is not part of the trusted list of OUs."
 
-  sql = <<-EOT
+  sql = <<-EOQ
     with ram_shared_resources as (
       select distinct
         rsa.associated_entity as "shared_resource",
@@ -239,7 +239,7 @@ control "ram_resource_shared_with_trusted_organization_units" {
       ${local.common_dimensions_sql}
     from
       shared_data;
-  EOT
+  EOQ
 
   param "trusted_organization_units" {
     description = "A list of trusted organization units."
@@ -276,7 +276,7 @@ control "config_aggregator_shared_with_trusted_accounts" {
   title       = "Config service aggregator should only collect data from trusted accounts"
   description = "Config service aggregator helps in monitoring compliance data for rules and accounts in the aggregated view. An aggregator is an AWS Config resource type that collects AWS Config configuration and compliance data from (1) Multiple accounts and multiple regions, (2) Single account and multiple regions, (3) An organization in AWS Organizations and all the accounts in that organization which have AWS Config enabled."
 
-  sql = <<-EOT
+  sql = <<-EOQ
     select
       title as resource,
       case
@@ -291,7 +291,7 @@ control "config_aggregator_shared_with_trusted_accounts" {
       ${local.common_dimensions_sql}
     from
       aws_config_aggregate_authorization;
-  EOT
+  EOQ
 
   param "trusted_accounts" {
     description = "A list of trusted accounts."
@@ -307,7 +307,7 @@ control "directory_service_directory_shared_with_trusted_accounts" {
   title       = "Directory Service directories should only be shared with trusted accounts"
   description = "This control checks whether Directory Service directories access are restricted to trusted accounts."
 
-  sql = <<-EOT
+  sql = <<-EOQ
     with all_directories as (
       select
         directory_id,
@@ -380,7 +380,7 @@ control "directory_service_directory_shared_with_trusted_accounts" {
       ${local.common_dimensions_sql}
     from
       evaluated_directories;
-  EOT
+  EOQ
 
   param "trusted_accounts" {
     description = "A list of trusted accounts."
@@ -396,7 +396,7 @@ control "dlm_ebs_snapshot_policy_shared_with_trusted_accounts" {
   title       = "DLM policies should only share EBS snapshot copies with trusted accounts"
   description = "Automating cross-account snapshot copies enables you to copy your EBS snapshots to specific regions in an isolated account and encrypt those snapshots with an encryption key. This enables you to protect yourself against data loss in the event of your account being compromised. This control checks if EBS snapshots are being copied to untrusted accounts."
 
-  sql = <<-EOT
+  sql = <<-EOQ
     with dlm_policy_shared_snapshot_copies as (
       select
         policy_id,
@@ -472,7 +472,7 @@ control "dlm_ebs_snapshot_policy_shared_with_trusted_accounts" {
       ${local.common_dimensions_sql}
     from
       dlm_policy_shared_snapshot_copies;
-  EOT
+  EOQ
 
   param "trusted_accounts" {
     description = "A list of trusted accounts."
@@ -488,7 +488,7 @@ control "ec2_ami_shared_with_trusted_accounts" {
   title       = "EC2 AMIs should only be shared with trusted accounts"
   description = "AWS AMIs can be shared with specific AWS accounts without making the AMI public. This control checks if AMIs are shared with untrusted accounts."
 
-  sql = <<-EOT
+  sql = <<-EOQ
     with all_amis as (
       select
         title,
@@ -563,7 +563,7 @@ control "ec2_ami_shared_with_trusted_accounts" {
         ${local.common_dimensions_sql}
     from
       evaluated_amis;
-  EOT
+  EOQ
 
   param "trusted_accounts" {
     description = "A list of trusted accounts."
@@ -579,7 +579,7 @@ control "ec2_ami_shared_with_trusted_organizations" {
   title       = "EC2 AMIs should only be shared with trusted organizations"
   description = "AWS AMIs can be shared with specific AWS organizations without making the AMI public. This control checks if AMIs are shared with untrusted organizations."
 
-  sql = <<-EOT
+  sql = <<-EOQ
     with all_amis as (
       select
         title,
@@ -648,7 +648,7 @@ control "ec2_ami_shared_with_trusted_organizations" {
         ${local.common_dimensions_sql}
     from
       evaluated_amis;
-  EOT
+  EOQ
 
   param "trusted_organizations" {
     description = "A list of trusted organizations."
@@ -664,7 +664,7 @@ control "ec2_ami_shared_with_trusted_organization_units" {
   title       = "EC2 AMIs should only be shared with trusted OUs"
   description = "AWS AMIs can be shared with specific AWS organizations units (OUs) without making the AMI public. This control checks if AMIs are shared with untrusted OUs."
 
-  sql = <<-EOT
+  sql = <<-EOQ
     with all_amis as (
       select
         title,
@@ -734,7 +734,7 @@ control "ec2_ami_shared_with_trusted_organization_units" {
       ${local.common_dimensions_sql}
     from
       evaluated_amis;
-  EOT
+  EOQ
 
   param "trusted_organization_units" {
     description = "A list of trusted organization units."
@@ -750,7 +750,7 @@ control "ebs_snapshot_shared_with_trusted_accounts" {
   title       = "EBS snapshots should only be shared with trusted accounts"
   description = "This control checks whether EBS snapshots access is restricted to trusted accounts."
 
-  sql = <<-EOT
+  sql = <<-EOQ
     with list_of_snashpot_shared_accounts as (
       select
         jsonb_agg((p -> 'UserId')) as list,
@@ -793,7 +793,7 @@ control "ebs_snapshot_shared_with_trusted_accounts" {
       ${replace(local.common_dimensions_qualifier_sql, "__QUALIFIER__", "s.")}
     from
       aws_ebs_snapshot as s left join shared_ebs_snapshot as ss on s.arn = ss.arn ;
-  EOT
+  EOQ
 
   param "trusted_accounts" {
     description = "A list of trusted accounts."
@@ -809,7 +809,7 @@ control "guarduty_findings_shared_with_trusted_accounts" {
   title       = "GuardDuty findings should only be shared with trusted accounts"
   description = "This control checks if GuardDuty findings are only shared with trusted administrator accounts."
 
-  sql = <<-EOT
+  sql = <<-EOQ
     select
       title as resource,
       case when master_account ->> 'AccountId' is null or (master_account ->> 'AccountId')::text = any (($1)::text[]) then
@@ -826,7 +826,7 @@ control "guarduty_findings_shared_with_trusted_accounts" {
       ${local.common_dimensions_sql}
     from
       aws_guardduty_detector;
-  EOT
+  EOQ
 
   param "trusted_accounts" {
     description = "A list of trusted accounts."
@@ -842,7 +842,7 @@ control "rds_db_snapshot_shared_with_trusted_accounts" {
   title       = "RDS DB snapshots should only be shared with trusted accounts"
   description = "This control checks whether RDS DB snapshots access is restricted to trusted accounts."
 
-  sql = <<-EOT
+  sql = <<-EOQ
     (with shared_cluster_snapshot_data as (
       select
         arn,
@@ -929,7 +929,7 @@ control "rds_db_snapshot_shared_with_trusted_accounts" {
       ${local.common_dimensions_sql}
     from
       shared_db_snapshot_data);
-  EOT
+  EOQ
 
   param "trusted_accounts" {
     description = "A list of trusted accounts."
