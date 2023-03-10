@@ -1,3 +1,10 @@
+## v0.3 [2023-03-10]
+
+_What's new?_
+
+- Added `tags` as dimensions to group and filter findings. (see [var.tag_dimensions](https://hub.steampipe.io/mods/turbot/aws_perimeter/variables)) ([#25](https://github.com/turbot/steampipe-mod-aws-perimeter/pull/25))
+- Added `connection_name` in the common dimensions to group and filter findings. (see [var.common_dimensions](https://hub.steampipe.io/mods/turbot/aws_perimeter/variables)) ([#25](https://github.com/turbot/steampipe-mod-aws-perimeter/pull/25))
+
 ## v0.2 [2022-07-15]
 
 _What's new?_
