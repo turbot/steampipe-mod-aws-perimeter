@@ -827,6 +827,8 @@ control "kms_key_policy_prohibit_public_access" {
         else title || ' policy contains ' || coalesce(p.statements_num, 0) ||
         ' statement(s) that allow public access.'
       end as reason
+      ${local.tag_dimensions_sql}
+      ${local.common_dimensions_sql}
     from
       aws_kms_key as r
       left join wildcard_action_policies as p on p.arn = r.arn
