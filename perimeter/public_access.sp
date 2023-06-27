@@ -734,7 +734,105 @@ control "iam_role_trust_policy_prohibit_public_access" {
 control "kms_key_policy_prohibit_public_access" {
   title       = "KMS key policies should prohibit public access"
   description = "Check if KMS key policies allow public access."
-  sql         = format("%s %s", replace(replace(local.resource_policy_public_sql, "__TABLE_NAME__", "aws_kms_key"), "__ARN_COLUMN__", "arn"), "where key_manager = 'CUSTOMER'")
+  sql         = <<-EOQ
+    with wildcard_action_policies as (
+      select
+        arn,
+        count(*) as statements_num
+      from
+        aws_kms_key,
+        jsonb_array_elements(policy_std -> 'Statement') as s
+      where
+        s ->> 'Effect' = 'Allow'
+        -- kms:CallerAccount
+       and s -> 'Condition' -> 'StringEquals' -> 'kms:calleraccount' is null
+        and s -> 'Condition' -> 'StringEqualsIgnoreCase' -> 'kms:calleraccount' is null
+        and (
+          s -> 'Condition' -> 'StringLike' -> 'kms:calleraccount' is null
+          or s -> 'Condition' -> 'StringLike' -> 'kms:calleraccount' ? '*'
+        )
+        -- aws:SourceOwner
+        and s -> 'Condition' -> 'StringEquals' -> 'aws:sourceowner' is null
+        and s -> 'Condition' -> 'StringEqualsIgnoreCase' -> 'aws:sourceowner' is null
+        and (
+          s -> 'Condition' -> 'StringLike' -> 'aws:sourceowner' is null
+          or s -> 'Condition' -> 'StringLike' -> 'aws:sourceowner' ? '*'
+        )
+        -- aws:SourceAccount
+        and s -> 'Condition' -> 'StringEquals' -> 'aws:sourceaccount' is null
+        and s -> 'Condition' -> 'StringEqualsIgnoreCase' -> 'aws:sourceaccount' is null
+        and (
+          s -> 'Condition' -> 'StringLike' -> 'aws:sourceaccount' is null
+          or s -> 'Condition' -> 'StringLike' -> 'aws:sourceaccount' ? '*'
+        )
+        -- aws:PrincipalOrgID
+        and s -> 'Condition' -> 'StringEquals' -> 'aws:principalorgid' is null
+        and s -> 'Condition' -> 'StringEqualsIgnoreCase' -> 'aws:principalorgid' is null
+        and (
+          s -> 'Condition' -> 'StringLike' -> 'aws:principalorgid' is null
+          or s -> 'Condition' -> 'StringLike' -> 'aws:principalorgid' ? '*'
+        )
+        -- aws:PrincipalAccount
+        and s -> 'Condition' -> 'StringEquals' -> 'aws:principalaccount' is null
+        and s -> 'Condition' -> 'StringEqualsIgnoreCase' -> 'aws:principalaccount' is null
+        and (
+          s -> 'Condition' -> 'StringLike' -> 'aws:principalaccount' is null
+          or s -> 'Condition' -> 'StringLike' -> 'aws:principalaccount' ? '*'
+        )
+        -- aws:PrincipalArn
+        and s -> 'Condition' -> 'StringEquals' -> 'aws:principalarn' is null
+        and s -> 'Condition' -> 'StringEqualsIgnoreCase' -> 'aws:principalarn' is null
+        and (
+          s -> 'Condition' -> 'StringLike' -> 'aws:principalarn' is null
+          or s -> 'Condition' -> 'StringLike' -> 'aws:principalarn' ? '*'
+        )
+        and (
+          s -> 'Condition' -> 'ArnEquals' -> 'aws:principalarn' is null
+          or s -> 'Condition' -> 'ArnEquals' -> 'aws:principalarn' ? '*'
+        )
+        and (
+          s -> 'Condition' -> 'ArnLike' -> 'aws:principalarn' is null
+          or s -> 'Condition' -> 'ArnLike' -> 'aws:principalarn' ? '*'
+        )
+        -- aws:SourceArn
+        and s -> 'Condition' -> 'StringEquals' -> 'aws:sourcearn' is null
+        and s -> 'Condition' -> 'StringEqualsIgnoreCase' -> 'aws:sourcearn' is null
+        and (
+          s -> 'Condition' -> 'StringLike' -> 'aws:sourcearn' is null
+          or s -> 'Condition' -> 'StringLike' -> 'aws:sourcearn' ? '*'
+        )
+        and (
+          s -> 'Condition' -> 'ArnEquals' -> 'aws:sourcearn' is null
+          or s -> 'Condition' -> 'ArnEquals' -> 'aws:sourcearn' ? '*'
+        )
+        and (
+          s -> 'Condition' -> 'ArnLike' -> 'aws:sourcearn' is null
+          or s -> 'Condition' -> 'ArnLike' -> 'aws:sourcearn' ? '*'
+        )
+        and (
+          s -> 'Principal' -> 'AWS' = '["*"]'
+          or s ->> 'Principal' = '*'
+        )
+      group by
+        arn
+    )
+    select
+      r.arn as resource,
+      case
+        when p.arn is null then 'ok'
+        else 'alarm'
+      end as status,
+      case
+        when p.arn is null then title || ' policy does not allow public access.'
+        else title || ' policy contains ' || coalesce(p.statements_num, 0) ||
+        ' statement(s) that allow public access.'
+      end as reason
+    from
+      aws_kms_key as r
+      left join wildcard_action_policies as p on p.arn = r.arn
+    where
+      key_manager = 'CUSTOMER';
+  EOQ
 
   tags = merge(local.aws_perimeter_common_tags, {
     service = "AWS/KMS"
