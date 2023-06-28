@@ -2,8 +2,8 @@
 
 _Bug fixes_
 
+- Fixed the inline query of the `kms_key_policy_prohibit_public_access` control to correctly check if KMS key policies allow public access. ([#30](https://github.com/turbot/steampipe-mod-aws-perimeter/pull/30))
 - Fixed dashboard localhost URLs in README and index doc. ([#29](https://github.com/turbot/steampipe-mod-aws-perimeter/pull/29))
-- Updated the query for `kms_key_policy_prohibit_public_access` control to correctly check if KMS key policies allow public access. ([#30](https://github.com/turbot/steampipe-mod-aws-perimeter/pull/30))
 
 ## v0.3 [2023-03-10]
 
