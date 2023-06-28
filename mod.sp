@@ -65,7 +65,7 @@ mod "aws_perimeter" {
     image       = "/images/mods/turbot/aws-perimeter-social-graphic.png"
   }
 
-  requires {
+  require {
     plugin "aws" {
       version = "0.70.0"
     }
