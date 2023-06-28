@@ -170,7 +170,7 @@ control "eks_cluster_endpoint_prohibit_public_access" {
 }
 
 control "rds_db_instance_prohibit_public_access" {
-  title       = "RDS DB instances should prohibit public accesss"
+  title       = "RDS DB instances should prohibit public access"
   description = "Manage access to resources in the AWS Cloud by ensuring that RDS instances are not public."
 
   sql = <<-EOT
@@ -544,7 +544,7 @@ locals {
         else 'alarm'
       end as status,
       case
-        when r.policy is null then title || ' does not have defined policy or insufficient access to the policy.'
+        when r.policy is null then title || ' does not have a defined policy or has insufficient access to the policy.'
         when p.__ARN_COLUMN__ is null then title || ' policy does not allow public access.'
         else title || ' policy contains ' || coalesce(p.statements_num, 0) ||
         ' statement(s) that allow public access.'
