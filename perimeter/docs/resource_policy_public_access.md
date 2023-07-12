@@ -2,6 +2,10 @@ This benchmark answers the following questions:
 
 - What resources have resource policies that allow public access?
 
+> **Important Note:** 
+> 
+> When evaluating policies only a subset of Conditions/Operators are checked, see the [table documentation for known limitations](https://hub.steampipe.io/plugins/turbot/aws/tables/aws_resource_policy_analysis#limitations).
+
 This benchmark defines public as a policy having at least one `Allow` statement that grants one or more permission to the `*` principal, e.g.
 
 ```json
@@ -68,25 +72,6 @@ This benchmark finally defines public as a policy that has a SAML Identity Provi
   ]
 }
 ```
-
-When evaluating statements for public access, the following [condition keys](https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_condition-keys.html) are checked:
-
-- `aws:PrincipalAccount`
-- `aws:PrincipalArn`
-- `aws:PrincipalOrgID`
-- `aws:SourceAccount`
-- `aws:SourceArn`
-- `aws:SourceOwner`
-
-And the following [condition operators](https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_elements_condition_operators.html) are checked:
-
-- `ArnLike`
-- `ArnEquals`
-- `StringEquals`
-- `StringEqualsIgnoreCase`
-- `StringLike`
-
-Inverse condition operators, like `StringNotEquals` and `ArnNotLike`, are not currently evaluated.
 
 For each statement, if there are any condition keys then these condition keys will be evaluated as follows:
 

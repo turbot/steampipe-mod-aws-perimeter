@@ -3,6 +3,10 @@ This benchmark answers the following questions:
 - What resources have resource policies that grant access to AWS services, accounts, identity providers or organizations?
 - Which services, accounts, identity providers or organizations that have been granted access are not trusted?
 
+> **Important Note:** 
+> 
+> When evaluating policies only a subset of Conditions/Operators are checked, see the [table documentation for known limitations](https://hub.steampipe.io/plugins/turbot/aws/tables/aws_resource_policy_analysis#limitations).
+
 This benchmark defines shared as a policy having at least one `Allow` statement that grants one or more permission to a principal.
 The benchmark exposes variables which can be used to set which accounts, services, identity providers or organizations are trusted.
 The benchmark will use these variables to check if the principals of the policy are trusted and alarm if they are untrusted.
