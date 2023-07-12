@@ -1001,12 +1001,14 @@ locals {
     select
       r.__ARN_COLUMN__ as resource,
       case
+        when pa.error is not null then 'error'
         when jsonb_array_length(pa.allowed_principal_account_ids) = 0 then 'ok'
         when pa.access_level = 'private' then 'ok'
         when pa.allowed_principal_account_ids <@ to_jsonb(($1)::text[]) then 'ok'
         else 'alarm'
       end as status,
       case
+        when pa.error is not null then title || ' policy parsing encountered an error: ' || pa.error
         when jsonb_array_length(pa.allowed_principal_account_ids) = 0 then title || ' trust policy does not reference any accounts.'
         when pa.access_level = 'private' then title || ' trust policy does not reference any cross-accounts.'
         when pa.allowed_principal_account_ids <@ to_jsonb(($1)::text[]) then concat(
@@ -1043,6 +1045,7 @@ locals {
       resource,
       title,
       pa.is_public,
+      pa.error,
       pa.allowed_principal_account_ids,
       pa.access_level,
       __DIMENSIONS__
@@ -1200,11 +1203,13 @@ locals {
     select
       r.__ARN_COLUMN__ as resource,
       case
+        when pa.error is not null then 'error'
         when jsonb_array_length(pa.allowed_organization_ids) = 0 then 'ok'
         when pa.allowed_organization_ids <@ to_jsonb(($1)::text[]) then 'ok'
         else 'alarm'
       end as status,
       case
+        when pa.error is not null then title || ' policy parsing encountered an error: ' || pa.error
         when jsonb_array_length(pa.allowed_organization_ids) = 0 then title || ' trust policy does not reference any organizations.'
         when pa.allowed_organization_ids <@ to_jsonb(($1)::text[] || ($2)::text[]) then concat(
           title, 
@@ -1240,6 +1245,7 @@ locals {
       resource,
       title,
       pa.is_public,
+      pa.error,
       pa.allowed_organization_ids,
       pa.access_level,
       __DIMENSIONS__
@@ -1437,11 +1443,13 @@ locals {
     select
       r.__ARN_COLUMN__ as resource,
       case
+        when pa.error is not null then 'error'
         when jsonb_array_length(pa.allowed_principal_services) = 0 then 'ok'
         when pa.allowed_principal_services <@ to_jsonb(($1)::text[]) then 'ok'
         else 'alarm'
       end as status,
       case
+        when pa.error is not null then title || ' policy parsing encountered an error: ' || pa.error
         when jsonb_array_length(pa.allowed_principal_services) = 0 then title || ' trust policy does not reference any services.'
         when pa.allowed_principal_services <@ to_jsonb(($1)::text[]) then concat(
           title, 
@@ -1477,6 +1485,7 @@ locals {
       resource,
       title,
       pa.is_public,
+      pa.error,
       pa.allowed_principal_services,
       pa.access_level,
       __DIMENSIONS__
@@ -1634,11 +1643,13 @@ locals {
     select
       r.__ARN_COLUMN__ as resource,
       case
+        when pa.error is not null then 'error'
         when jsonb_array_length(pa.allowed_principal_federated_identities) = 0 then 'ok'
         when pa.allowed_principal_federated_identities <@ to_jsonb(($1)::text[]) then 'ok'
         else 'alarm'
       end as status,
       case
+        when pa.error is not null then title || ' policy parsing encountered an error: ' || pa.error
         when jsonb_array_length(pa.allowed_principal_federated_identities) = 0 then title || ' trust policy does not reference any identity providers.'
         when pa.allowed_principal_federated_identities <@ to_jsonb(($1)::text[]) then concat(
           title, 
@@ -1674,6 +1685,7 @@ locals {
       resource,
       title,
       pa.is_public,
+      pa.error,
       pa.allowed_principal_federated_identities,
       pa.access_level,
       __DIMENSIONS__

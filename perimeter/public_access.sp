@@ -106,7 +106,7 @@ control "ebs_snapshot_not_publicly_accessible" {
         else title || ' not publicly restorable.'
       end reason,
       region,
-      '123456789012' as account_id
+      account_id
     from
       aws_ebs_snapshot;
   EOT
@@ -133,7 +133,7 @@ control "ec2_instance_ami_prohibit_public_access" {
         else title || ' not publicly accessible.'
       end as reason,
       region,
-      '123456789012' as account_id
+      account_id
     from
       aws_ec2_ami;
   EOT
@@ -465,10 +465,12 @@ locals {
     select
       r.__ARN_COLUMN__ as resource,
       case
+        when pa.error is not null then 'error'
         when pa.is_public = true then 'alarm'
         else 'ok'
       end as status,
       case
+        when pa.error is not null then title || ' policy parsing encountered an error: ' || pa.error
         when pa.is_public = false then title || ' policy does not allow public access.'
         when jsonb_array_length(pa.public_statement_ids) = 1 then concat(
           title,
@@ -507,6 +509,7 @@ locals {
     group by
       resource,
       title,
+      pa.error,
       pa.is_public,
       pa.public_statement_ids,
       __DIMENSIONS__
