@@ -2,7 +2,7 @@
 
 _Bug fixes_
 
-- Fixed the inline query of the `ec2_ami_shared_with_trusted_accounts` control to correctly check that EC2 AMIs are only shared with trusted accounts. ([#34](https://github.com/turbot/steampipe-mod-aws-perimeter/pull/34))
+- Fixed the inline query of the `ec2_ami_shared_with_trusted_accounts` control to correctly check if EC2 AMIs are only shared with trusted accounts. ([#34](https://github.com/turbot/steampipe-mod-aws-perimeter/pull/34))
 
 ## v0.4 [2023-06-28]
 
