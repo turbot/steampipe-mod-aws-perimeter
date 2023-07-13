@@ -510,7 +510,7 @@ control "ec2_ami_shared_with_trusted_accounts" {
         public,
         string_agg(lp ->> 'Group', ',') as public_access,
         to_jsonb(string_to_array(string_agg(lp ->> 'UserId', ','), ',')) as shared_accounts,
-        to_jsonb(string_to_array(string_agg(lp ->> 'UserId', ','), ',')) - ($1)::text as untrusted_accounts,
+        to_jsonb(string_to_array(string_agg(lp ->> 'UserId', ','), ',')) - ($1)::text[] as untrusted_accounts,
         region,
         _ctx,
         tags,
@@ -519,7 +519,7 @@ control "ec2_ami_shared_with_trusted_accounts" {
         all_amis,
         jsonb_array_elements(launch_permissions) lp
       group by
-        title, 
+        title,
         public,
         region,
         _ctx,
