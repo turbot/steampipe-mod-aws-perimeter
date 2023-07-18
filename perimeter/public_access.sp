@@ -562,18 +562,66 @@ benchmark "resource_policy_public_access" {
   description   = "Resources should not be publicly accessible through statements in their resource policies."
   documentation = file("./perimeter/docs/resource_policy_public_access.md")
   children = [
+    control.api_gateway_rest_api_policy_prohibit_public_access,
+    control.backup_vault_policy_prohibit_public_access,
+    control.codeartifact_domain_policy_prohibit_public_access,
+    control.codeartifact_repository_policy_prohibit_public_access,
     control.ecr_repository_policy_prohibit_public_access,
+    control.efs_file_system_policy_prohibit_public_access,
+    control.eventbridge_bus_policy_prohibit_public_access,
     control.glacier_vault_policy_prohibit_public_access,
     control.iam_role_trust_policy_prohibit_public_access,
     control.kms_key_policy_prohibit_public_access,
     control.lambda_function_policy_prohibit_public_access,
+    control.media_store_container_policy_prohibit_public_access,
     control.s3_bucket_policy_prohibit_public_access,
+    control.secretsmanager_secret_policy_prohibit_public_access,
     control.sns_topic_policy_prohibit_public_access,
     control.sqs_queue_policy_prohibit_public_access
   ]
 
   tags = merge(local.aws_perimeter_common_tags, {
     type = "Benchmark"
+  })
+}
+
+control "api_gateway_rest_api_policy_prohibit_public_access" {
+  title       = "API Gateway rest API policies should prohibit public access"
+  description = "Check if API Gateway rest API policies allow public access."
+  sql         = replace(replace(local.resource_policy_public_sql, "__TABLE_NAME__", "aws_api_gateway_rest_api"), "__ARN_COLUMN__", "api_id")
+
+  tags = merge(local.aws_perimeter_common_tags, {
+    service = "AWS/APIGateway"
+  })
+}
+
+control "backup_vault_policy_prohibit_public_access" {
+  title       = "Backup vault policies should prohibit public access"
+  description = "Check if Backup vault policies allow public access."
+  sql         = replace(replace(local.resource_policy_public_sql, "__TABLE_NAME__", "aws_backup_vault"), "__ARN_COLUMN__", "arn")
+
+  tags = merge(local.aws_perimeter_common_tags, {
+    service = "AWS/Backup"
+  })
+}
+
+control "codeartifact_domain_policy_prohibit_public_access" {
+  title       = "CodeArtifact domain policies should prohibit public access"
+  description = "Check if CodeArtifact domain policies allow public access."
+  sql         = replace(replace(local.resource_policy_public_sql, "__TABLE_NAME__", "aws_codeartifact_domain"), "__ARN_COLUMN__", "arn")
+
+  tags = merge(local.aws_perimeter_common_tags, {
+    service = "AWS/CodeArtifact"
+  })
+}
+
+control "codeartifact_repository_policy_prohibit_public_access" {
+  title       = "CodeArtifact repository policies should prohibit public access"
+  description = "Check if CodeArtifact repository policies allow public access."
+  sql         = replace(replace(local.resource_policy_public_sql, "__TABLE_NAME__", "aws_codeartifact_repository"), "__ARN_COLUMN__", "arn")
+
+  tags = merge(local.aws_perimeter_common_tags, {
+    service = "AWS/CodeArtifact"
   })
 }
 
@@ -587,6 +635,26 @@ control "ecr_repository_policy_prohibit_public_access" {
   })
 }
 
+control "efs_file_system_policy_prohibit_public_access" {
+  title       = "EFS file system policies should prohibit public access"
+  description = "Check if EFS file system policies allow public access."
+  sql         = replace(replace(local.resource_policy_public_sql, "__TABLE_NAME__", "aws_efs_file_system"), "__ARN_COLUMN__", "arn")
+
+  tags = merge(local.aws_perimeter_common_tags, {
+    service = "AWS/EFS"
+  })
+}
+
+control "eventbridge_bus_policy_prohibit_public_access" {
+  title       = "EventBridge bus policies should prohibit public access"
+  description = "Check if EventBridge bus  policies allow public access."
+  sql         = replace(replace(local.resource_policy_public_sql, "__TABLE_NAME__", "aws_eventbridge_bus"), "__ARN_COLUMN__", "arn")
+
+  tags = merge(local.aws_perimeter_common_tags, {
+    service = "AWS/EventBridge"
+  })
+}
+
 control "lambda_function_policy_prohibit_public_access" {
   title       = "Lambda function policies should prohibit public access"
   description = "Check if Lambda function policies allow public access."
@@ -594,6 +662,26 @@ control "lambda_function_policy_prohibit_public_access" {
 
   tags = merge(local.aws_perimeter_common_tags, {
     service = "AWS/Lambda"
+  })
+}
+
+control "media_store_container_policy_prohibit_public_access" {
+  title       = "Elemental MediaStore container policies should prohibit public access"
+  description = "Check if Elemental MediaStore container policies allow public access."
+  sql         = replace(replace(local.resource_policy_public_sql, "__TABLE_NAME__", "aws_media_store_container"), "__ARN_COLUMN__", "arn")
+
+  tags = merge(local.aws_perimeter_common_tags, {
+    service = "AWS/ElementalMediaStore"
+  })
+}
+
+control "secretsmanager_secret_policy_prohibit_public_access" {
+  title       = "Secrets Manager secret policies should prohibit public access"
+  description = "Check if Secrets Manager secret policies allow public access."
+  sql         = replace(replace(local.resource_policy_public_sql, "__TABLE_NAME__", "aws_secretsmanager_secret"), "__ARN_COLUMN__", "arn")
+
+  tags = merge(local.aws_perimeter_common_tags, {
+    service = "AWS/SecretsManager"
   })
 }
 
