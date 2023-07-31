@@ -562,18 +562,78 @@ benchmark "resource_policy_public_access" {
   description   = "Resources should not be publicly accessible through statements in their resource policies."
   documentation = file("./perimeter/docs/resource_policy_public_access.md")
   children = [
+    control.api_gateway_rest_api_policy_prohibit_public_access,
+    control.backup_vault_policy_prohibit_public_access,
+    control.cloudwatch_log_resource_policy_prohibit_public_access,
+    control.codeartifact_domain_policy_prohibit_public_access,
+    control.codeartifact_repository_policy_prohibit_public_access,
     control.ecr_repository_policy_prohibit_public_access,
+    control.efs_file_system_policy_prohibit_public_access,
+    control.elasticsearch_domain_policy_prohibit_public_access,
+    control.eventbridge_bus_policy_prohibit_public_access,
     control.glacier_vault_policy_prohibit_public_access,
     control.iam_role_trust_policy_prohibit_public_access,
     control.kms_key_policy_prohibit_public_access,
     control.lambda_function_policy_prohibit_public_access,
+    control.media_store_container_policy_prohibit_public_access,
     control.s3_bucket_policy_prohibit_public_access,
+    control.secretsmanager_secret_policy_prohibit_public_access,
     control.sns_topic_policy_prohibit_public_access,
     control.sqs_queue_policy_prohibit_public_access
   ]
 
   tags = merge(local.aws_perimeter_common_tags, {
     type = "Benchmark"
+  })
+}
+
+control "api_gateway_rest_api_policy_prohibit_public_access" {
+  title       = "API Gateway rest API policies should prohibit public access"
+  description = "Check if API Gateway rest API policies allow public access."
+  sql         = replace(replace(local.resource_policy_public_sql, "__TABLE_NAME__", "aws_api_gateway_rest_api"), "__ARN_COLUMN__", "api_id")
+
+  tags = merge(local.aws_perimeter_common_tags, {
+    service = "AWS/APIGateway"
+  })
+}
+
+control "backup_vault_policy_prohibit_public_access" {
+  title       = "Backup vault policies should prohibit public access"
+  description = "Check if Backup vault policies allow public access."
+  sql         = replace(replace(local.resource_policy_public_sql, "__TABLE_NAME__", "aws_backup_vault"), "__ARN_COLUMN__", "arn")
+
+  tags = merge(local.aws_perimeter_common_tags, {
+    service = "AWS/Backup"
+  })
+}
+
+control "cloudwatch_log_resource_policy_prohibit_public_access" {
+  title       = "CloudWatch log resource policies should prohibit public access"
+  description = "Check if CloudWatch log resource policies allow public access."
+  sql         = replace(replace(local.resource_policy_public_sql, "__TABLE_NAME__", "aws_cloudwatch_log_resource_policy"), "__ARN_COLUMN__", "policy_name")
+
+  tags = merge(local.aws_perimeter_common_tags, {
+    service = "AWS/CloudWatch"
+  })
+}
+
+control "codeartifact_domain_policy_prohibit_public_access" {
+  title       = "CodeArtifact domain policies should prohibit public access"
+  description = "Check if CodeArtifact domain policies allow public access."
+  sql         = replace(replace(local.resource_policy_public_sql, "__TABLE_NAME__", "aws_codeartifact_domain"), "__ARN_COLUMN__", "arn")
+
+  tags = merge(local.aws_perimeter_common_tags, {
+    service = "AWS/CodeArtifact"
+  })
+}
+
+control "codeartifact_repository_policy_prohibit_public_access" {
+  title       = "CodeArtifact repository policies should prohibit public access"
+  description = "Check if CodeArtifact repository policies allow public access."
+  sql         = replace(replace(local.resource_policy_public_sql, "__TABLE_NAME__", "aws_codeartifact_repository"), "__ARN_COLUMN__", "arn")
+
+  tags = merge(local.aws_perimeter_common_tags, {
+    service = "AWS/CodeArtifact"
   })
 }
 
@@ -587,43 +647,127 @@ control "ecr_repository_policy_prohibit_public_access" {
   })
 }
 
-control "lambda_function_policy_prohibit_public_access" {
-  title       = "Lambda function policies should prohibit public access"
-  description = "Check if Lambda function policies allow public access."
-  sql         = replace(replace(local.resource_policy_public_sql, "__TABLE_NAME__", "aws_lambda_function"), "__ARN_COLUMN__", "arn")
+control "efs_file_system_policy_prohibit_public_access" {
+  title       = "EFS file system policies should prohibit public access"
+  description = "Check if EFS file system policies allow public access."
+  sql         = replace(replace(local.resource_policy_public_sql, "__TABLE_NAME__", "aws_efs_file_system"), "__ARN_COLUMN__", "arn")
 
   tags = merge(local.aws_perimeter_common_tags, {
-    service = "AWS/Lambda"
+    service = "AWS/EFS"
   })
 }
 
-control "s3_bucket_policy_prohibit_public_access" {
-  title       = "S3 bucket policies should prohibit public access"
-  description = "Check if S3 bucket policies allow public access."
-  sql         = replace(replace(local.resource_policy_public_sql, "__TABLE_NAME__", "aws_s3_bucket"), "__ARN_COLUMN__", "arn")
+control "elasticsearch_domain_policy_prohibit_public_access" {
+  title       = "ES domain policies should prohibit public access"
+  description = "Check if ES domain policies allow public access."
 
-  tags = merge(local.aws_perimeter_common_tags, {
-    service = "AWS/S3"
+  sql = <<-EOQ
+    with wildcard_action_policies as (
+      select
+        arn,
+        count(*) as statements_num
+      from
+        aws_elasticsearch_domain,
+        jsonb_array_elements(policy_std -> 'Statement') as s
+      where
+        s ->> 'Effect' = 'Allow'
+        -- aws:SourceOwner
+        and s -> 'Condition' -> 'StringEquals' -> 'aws:sourceowner' is null
+        and s -> 'Condition' -> 'StringEqualsIgnoreCase' -> 'aws:sourceowner' is null
+        and (
+          s -> 'Condition' -> 'StringLike' -> 'aws:sourceowner' is null
+          or s -> 'Condition' -> 'StringLike' -> 'aws:sourceowner' ? '*'
+        )
+        -- aws:SourceAccount
+        and s -> 'Condition' -> 'StringEquals' -> 'aws:sourceaccount' is null
+        and s -> 'Condition' -> 'StringEqualsIgnoreCase' -> 'aws:sourceaccount' is null
+        and (
+          s -> 'Condition' -> 'StringLike' -> 'aws:sourceaccount' is null
+          or s -> 'Condition' -> 'StringLike' -> 'aws:sourceaccount' ? '*'
+        )
+        -- aws:PrincipalOrgID
+        and s -> 'Condition' -> 'StringEquals' -> 'aws:principalorgid' is null
+        and s -> 'Condition' -> 'StringEqualsIgnoreCase' -> 'aws:principalorgid' is null
+        and (
+          s -> 'Condition' -> 'StringLike' -> 'aws:principalorgid' is null
+          or s -> 'Condition' -> 'StringLike' -> 'aws:principalorgid' ? '*'
+        )
+        -- aws:PrincipalAccount
+        and s -> 'Condition' -> 'StringEquals' -> 'aws:principalaccount' is null
+        and s -> 'Condition' -> 'StringEqualsIgnoreCase' -> 'aws:principalaccount' is null
+        and (
+          s -> 'Condition' -> 'StringLike' -> 'aws:principalaccount' is null
+          or s -> 'Condition' -> 'StringLike' -> 'aws:principalaccount' ? '*'
+        )
+        -- aws:PrincipalArn
+        and s -> 'Condition' -> 'StringEquals' -> 'aws:principalarn' is null
+        and s -> 'Condition' -> 'StringEqualsIgnoreCase' -> 'aws:principalarn' is null
+        and (
+          s -> 'Condition' -> 'StringLike' -> 'aws:principalarn' is null
+          or s -> 'Condition' -> 'StringLike' -> 'aws:principalarn' ? '*'
+        )
+        and (
+          s -> 'Condition' -> 'ArnEquals' -> 'aws:principalarn' is null
+          or s -> 'Condition' -> 'ArnEquals' -> 'aws:principalarn' ? '*'
+        )
+        and (
+          s -> 'Condition' -> 'ArnLike' -> 'aws:principalarn' is null
+          or s -> 'Condition' -> 'ArnLike' -> 'aws:principalarn' ? '*'
+        )
+        -- aws:SourceArn
+        and s -> 'Condition' -> 'StringEquals' -> 'aws:sourcearn' is null
+        and s -> 'Condition' -> 'StringEqualsIgnoreCase' -> 'aws:sourcearn' is null
+        and (
+          s -> 'Condition' -> 'StringLike' -> 'aws:sourcearn' is null
+          or s -> 'Condition' -> 'StringLike' -> 'aws:sourcearn' ? '*'
+        )
+        and (
+          s -> 'Condition' -> 'ArnEquals' -> 'aws:sourcearn' is null
+          or s -> 'Condition' -> 'ArnEquals' -> 'aws:sourcearn' ? '*'
+        )
+        and (
+          s -> 'Condition' -> 'ArnLike' -> 'aws:sourcearn' is null
+          or s -> 'Condition' -> 'ArnLike' -> 'aws:sourcearn' ? '*'
+        )
+        and (
+          s -> 'Principal' -> 'AWS' = '["*"]'
+          or s ->> 'Principal' = '*'
+        )
+      group by
+        arn
+    )
+    select
+      r.arn as resource,
+      case
+        when r.policy_std is null then 'info'
+        when p.arn is null then 'ok'
+        else 'alarm'
+      end as status,
+      case
+        when r.policy_std is null then title || ' does not have a defined policy or has insufficient access to the policy.'
+        when p.arn is null then title || ' policy does not allow public access.'
+        else title || ' policy contains ' || coalesce(p.statements_num, 0) ||
+        ' statement(s) that allow public access.'
+      end as reason
+      ${local.tag_dimensions_sql}
+      ${local.common_dimensions_sql}
+    from
+      aws_elasticsearch_domain as r
+      left join wildcard_action_policies as p on p.arn = r.arn
+    EOQ
+
+    tags = merge(local.aws_perimeter_common_tags, {
+    service = "AWS/ES"
   })
 }
 
-control "sns_topic_policy_prohibit_public_access" {
-  title       = "SNS topic policies should prohibit public access"
-  description = "Check if SNS topic policies allow public access."
-  sql         = replace(replace(local.resource_policy_public_sql, "__TABLE_NAME__", "aws_sns_topic"), "__ARN_COLUMN__", "topic_arn")
+control "eventbridge_bus_policy_prohibit_public_access" {
+  title       = "EventBridge bus policies should prohibit public access"
+  description = "Check if EventBridge bus  policies allow public access."
+  sql         = replace(replace(local.resource_policy_public_sql, "__TABLE_NAME__", "aws_eventbridge_bus"), "__ARN_COLUMN__", "arn")
 
   tags = merge(local.aws_perimeter_common_tags, {
-    service = "AWS/SNS"
-  })
-}
-
-control "sqs_queue_policy_prohibit_public_access" {
-  title       = "SQS queue policies should prohibit public access"
-  description = "Check if SQS queue policies allow public access."
-  sql         = replace(replace(local.resource_policy_public_sql, "__TABLE_NAME__", "aws_sqs_queue"), "__ARN_COLUMN__", "queue_arn")
-
-  tags = merge(local.aws_perimeter_common_tags, {
-    service = "AWS/SQS"
+    service = "AWS/EventBridge"
   })
 }
 
@@ -840,5 +984,65 @@ control "kms_key_policy_prohibit_public_access" {
 
   tags = merge(local.aws_perimeter_common_tags, {
     service = "AWS/KMS"
+  })
+}
+
+control "lambda_function_policy_prohibit_public_access" {
+  title       = "Lambda function policies should prohibit public access"
+  description = "Check if Lambda function policies allow public access."
+  sql         = replace(replace(local.resource_policy_public_sql, "__TABLE_NAME__", "aws_lambda_function"), "__ARN_COLUMN__", "arn")
+
+  tags = merge(local.aws_perimeter_common_tags, {
+    service = "AWS/Lambda"
+  })
+}
+
+control "media_store_container_policy_prohibit_public_access" {
+  title       = "Elemental MediaStore container policies should prohibit public access"
+  description = "Check if Elemental MediaStore container policies allow public access."
+  sql         = replace(replace(local.resource_policy_public_sql, "__TABLE_NAME__", "aws_media_store_container"), "__ARN_COLUMN__", "arn")
+
+  tags = merge(local.aws_perimeter_common_tags, {
+    service = "AWS/ElementalMediaStore"
+  })
+}
+
+control "s3_bucket_policy_prohibit_public_access" {
+  title       = "S3 bucket policies should prohibit public access"
+  description = "Check if S3 bucket policies allow public access."
+  sql         = replace(replace(local.resource_policy_public_sql, "__TABLE_NAME__", "aws_s3_bucket"), "__ARN_COLUMN__", "arn")
+
+  tags = merge(local.aws_perimeter_common_tags, {
+    service = "AWS/S3"
+  })
+}
+
+control "secretsmanager_secret_policy_prohibit_public_access" {
+  title       = "Secrets Manager secret policies should prohibit public access"
+  description = "Check if Secrets Manager secret policies allow public access."
+  sql         = replace(replace(local.resource_policy_public_sql, "__TABLE_NAME__", "aws_secretsmanager_secret"), "__ARN_COLUMN__", "arn")
+
+  tags = merge(local.aws_perimeter_common_tags, {
+    service = "AWS/SecretsManager"
+  })
+}
+
+control "sns_topic_policy_prohibit_public_access" {
+  title       = "SNS topic policies should prohibit public access"
+  description = "Check if SNS topic policies allow public access."
+  sql         = replace(replace(local.resource_policy_public_sql, "__TABLE_NAME__", "aws_sns_topic"), "__ARN_COLUMN__", "topic_arn")
+
+  tags = merge(local.aws_perimeter_common_tags, {
+    service = "AWS/SNS"
+  })
+}
+
+control "sqs_queue_policy_prohibit_public_access" {
+  title       = "SQS queue policies should prohibit public access"
+  description = "Check if SQS queue policies allow public access."
+  sql         = replace(replace(local.resource_policy_public_sql, "__TABLE_NAME__", "aws_sqs_queue"), "__ARN_COLUMN__", "queue_arn")
+
+  tags = merge(local.aws_perimeter_common_tags, {
+    service = "AWS/SQS"
   })
 }
