@@ -753,10 +753,10 @@ control "elasticsearch_domain_policy_prohibit_public_access" {
       ${local.common_dimensions_sql}
     from
       aws_elasticsearch_domain as r
-      left join wildcard_action_policies as p on p.arn = r.arn
+      left join wildcard_action_policies as p on p.arn = r.arn;
     EOQ
 
-    tags = merge(local.aws_perimeter_common_tags, {
+  tags = merge(local.aws_perimeter_common_tags, {
     service = "AWS/ES"
   })
 }
