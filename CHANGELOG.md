@@ -1,3 +1,19 @@
+## v0.5 [2023-07-21]
+
+_Enhancements_
+
+- Added the following controls to `Public Access` benchmark: ([#37](https://github.com/turbot/steampipe-mod-aws-perimeter/pull/37))
+  - `api_gateway_rest_api_policy_prohibit_public_access`
+  - `backup_vault_policy_prohibit_public_access`
+  - `cloudwatch_log_resource_policy_prohibit_public_access`
+  - `codeartifact_domain_policy_prohibit_public_access`
+  - `codeartifact_repository_policy_prohibit_public_access`
+  - `efs_file_system_policy_prohibit_public_access`
+  - `elasticsearch_domain_policy_prohibit_public_access`
+  - `eventbridge_bus_policy_prohibit_public_access`
+  - `media_store_container_policy_prohibit_public_access`
+  - `secretsmanager_secret_policy_prohibit_public_access`
+
 ## v0.5 [2023-07-13]
 
 _Bug fixes_
