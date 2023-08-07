@@ -194,6 +194,7 @@ control "rds_db_instance_prohibit_public_access" {
     service = "AWS/RDS"
   })
 }
+
 control "rds_db_cluster_snapshot_prohibit_public_access" {
   title       = "RDS DB cluster snapshots should not be publicly restorable"
   description = "This control checks whether RDS DB cluster snapshots prohibit access to other accounts. It is recommended that your RDS cluster snapshots should not be public in order to prevent potential leak or misuse of sensitive data or any other kind of security threat. If your RDS cluster snapshot is public; then the data which is backed up in that snapshot is accessible to all other AWS accounts."
@@ -462,99 +463,66 @@ control "s3_bucket_acl_prohibit_public_write_access" {
 
 locals {
   resource_policy_public_sql = <<EOQ
-    with wildcard_action_policies as (
-      select
-        __ARN_COLUMN__,
-        count(*) as statements_num
-      from
-        __TABLE_NAME__,
-        jsonb_array_elements(policy_std -> 'Statement') as s
-      where
-        s ->> 'Effect' = 'Allow'
-        -- aws:SourceOwner
-        and s -> 'Condition' -> 'StringEquals' -> 'aws:sourceowner' is null
-        and s -> 'Condition' -> 'StringEqualsIgnoreCase' -> 'aws:sourceowner' is null
-        and (
-          s -> 'Condition' -> 'StringLike' -> 'aws:sourceowner' is null
-          or s -> 'Condition' -> 'StringLike' -> 'aws:sourceowner' ? '*'
-        )
-        -- aws:SourceAccount
-        and s -> 'Condition' -> 'StringEquals' -> 'aws:sourceaccount' is null
-        and s -> 'Condition' -> 'StringEqualsIgnoreCase' -> 'aws:sourceaccount' is null
-        and (
-          s -> 'Condition' -> 'StringLike' -> 'aws:sourceaccount' is null
-          or s -> 'Condition' -> 'StringLike' -> 'aws:sourceaccount' ? '*'
-        )
-        -- aws:PrincipalOrgID
-        and s -> 'Condition' -> 'StringEquals' -> 'aws:principalorgid' is null
-        and s -> 'Condition' -> 'StringEqualsIgnoreCase' -> 'aws:principalorgid' is null
-        and (
-          s -> 'Condition' -> 'StringLike' -> 'aws:principalorgid' is null
-          or s -> 'Condition' -> 'StringLike' -> 'aws:principalorgid' ? '*'
-        )
-        -- aws:PrincipalAccount
-        and s -> 'Condition' -> 'StringEquals' -> 'aws:principalaccount' is null
-        and s -> 'Condition' -> 'StringEqualsIgnoreCase' -> 'aws:principalaccount' is null
-        and (
-          s -> 'Condition' -> 'StringLike' -> 'aws:principalaccount' is null
-          or s -> 'Condition' -> 'StringLike' -> 'aws:principalaccount' ? '*'
-        )
-        -- aws:PrincipalArn
-        and s -> 'Condition' -> 'StringEquals' -> 'aws:principalarn' is null
-        and s -> 'Condition' -> 'StringEqualsIgnoreCase' -> 'aws:principalarn' is null
-        and (
-          s -> 'Condition' -> 'StringLike' -> 'aws:principalarn' is null
-          or s -> 'Condition' -> 'StringLike' -> 'aws:principalarn' ? '*'
-        )
-        and (
-          s -> 'Condition' -> 'ArnEquals' -> 'aws:principalarn' is null
-          or s -> 'Condition' -> 'ArnEquals' -> 'aws:principalarn' ? '*'
-        )
-        and (
-          s -> 'Condition' -> 'ArnLike' -> 'aws:principalarn' is null
-          or s -> 'Condition' -> 'ArnLike' -> 'aws:principalarn' ? '*'
-        )
-        -- aws:SourceArn
-        and s -> 'Condition' -> 'StringEquals' -> 'aws:sourcearn' is null
-        and s -> 'Condition' -> 'StringEqualsIgnoreCase' -> 'aws:sourcearn' is null
-        and (
-          s -> 'Condition' -> 'StringLike' -> 'aws:sourcearn' is null
-          or s -> 'Condition' -> 'StringLike' -> 'aws:sourcearn' ? '*'
-        )
-        and (
-          s -> 'Condition' -> 'ArnEquals' -> 'aws:sourcearn' is null
-          or s -> 'Condition' -> 'ArnEquals' -> 'aws:sourcearn' ? '*'
-        )
-        and (
-          s -> 'Condition' -> 'ArnLike' -> 'aws:sourcearn' is null
-          or s -> 'Condition' -> 'ArnLike' -> 'aws:sourcearn' ? '*'
-        )
-        and (
-          s -> 'Principal' -> 'AWS' = '["*"]'
-          or s ->> 'Principal' = '*'
-        )
-      group by
-        __ARN_COLUMN__
-    )
     select
       r.__ARN_COLUMN__ as resource,
       case
-        when r.policy is null then 'info'
-        when p.__ARN_COLUMN__ is null then 'ok'
-        else 'alarm'
+        when pa.parse_errors is not null then 'error'
+        when pa.is_public = true then 'alarm'
+        else 'ok'
       end as status,
       case
-        when r.policy is null then title || ' does not have a defined policy or has insufficient access to the policy.'
-        when p.__ARN_COLUMN__ is null then title || ' policy does not allow public access.'
-        else title || ' policy contains ' || coalesce(p.statements_num, 0) ||
-        ' statement(s) that allow public access.'
+        when pa.parse_errors is not null then title || ' policy parsing encountered an errors.'
+        when pa.is_public = false then title || ' policy does not allow public access.'
+        when jsonb_array_length(pa.public_statement_ids) = 1 then concat(
+          title,
+          ' policy contains 1 statement that allow public access: [',
+          pa.public_statement_ids ->> 0,
+          '].'
+        )
+        when jsonb_array_length(pa.public_statement_ids) = 2 then concat(
+          title,
+          ' policy contains 2 statement that allow public access: [',
+          pa.public_statement_ids ->> 0,
+          ', ',
+          pa.public_statement_ids ->> 1,
+          '].'
+        )
+        else concat(
+          title,
+          ' policy contains ',
+          jsonb_array_length(pa.public_statement_ids),
+          ' statement that allow public access: [',
+          pa.public_statement_ids ->> 0,
+          ', ',
+          pa.public_statement_ids ->> 1,
+          ', and ',
+          jsonb_array_length(pa.public_statement_ids) - 2,
+          ' more].'
+        )
       end as reason
       ${local.tag_dimensions_sql}
       ${local.common_dimensions_sql}
     from
-      __TABLE_NAME__ as r
-      left join wildcard_action_policies as p on p.__ARN_COLUMN__ = r.__ARN_COLUMN__
+      __TABLE_NAME__ as r,
+      aws_resource_policy_analysis as pa
+    where
+      pa.account_id = r.account_id
+      __CRITERIA__
+    group by
+      resource,
+      title,
+      pa.parse_errors,
+      pa.is_public,
+      pa.public_statement_ids
+      ${local.tag_dimensions_sql}
+      ${local.common_dimensions_sql}
   EOQ
+}
+
+locals {
+  resource_policy_public_sql_account = replace(local.resource_policy_public_sql, "__CRITERIA__", "and pa.policy = r.assume_role_policy_std")
+  resource_policy_public_sql_general = replace(local.resource_policy_public_sql, "__CRITERIA__", "and pa.policy = r.policy_std")
+  resource_policy_public_sql_for_kms = replace(local.resource_policy_public_sql, "__CRITERIA__", "and pa.policy = r.policy_std and key_manager = 'CUSTOMER'")
 }
 
 benchmark "resource_policy_public_access" {
@@ -590,7 +558,7 @@ benchmark "resource_policy_public_access" {
 control "api_gateway_rest_api_policy_prohibit_public_access" {
   title       = "API Gateway rest API policies should prohibit public access"
   description = "Check if API Gateway rest API policies allow public access."
-  sql         = replace(replace(local.resource_policy_public_sql, "__TABLE_NAME__", "aws_api_gateway_rest_api"), "__ARN_COLUMN__", "api_id")
+  sql         = replace(replace(local.resource_policy_public_sql_general, "__TABLE_NAME__", "aws_api_gateway_rest_api"), "__ARN_COLUMN__", "api_id")
 
   tags = merge(local.aws_perimeter_common_tags, {
     service = "AWS/APIGateway"
@@ -600,7 +568,7 @@ control "api_gateway_rest_api_policy_prohibit_public_access" {
 control "backup_vault_policy_prohibit_public_access" {
   title       = "Backup vault policies should prohibit public access"
   description = "Check if Backup vault policies allow public access."
-  sql         = replace(replace(local.resource_policy_public_sql, "__TABLE_NAME__", "aws_backup_vault"), "__ARN_COLUMN__", "arn")
+  sql         = replace(replace(local.resource_policy_public_sql_general, "__TABLE_NAME__", "aws_backup_vault"), "__ARN_COLUMN__", "arn")
 
   tags = merge(local.aws_perimeter_common_tags, {
     service = "AWS/Backup"
@@ -610,7 +578,7 @@ control "backup_vault_policy_prohibit_public_access" {
 control "cloudwatch_log_resource_policy_prohibit_public_access" {
   title       = "CloudWatch log resource policies should prohibit public access"
   description = "Check if CloudWatch log resource policies allow public access."
-  sql         = replace(replace(local.resource_policy_public_sql, "__TABLE_NAME__", "aws_cloudwatch_log_resource_policy"), "__ARN_COLUMN__", "policy_name")
+  sql         = replace(replace(local.resource_policy_public_sql_general, "__TABLE_NAME__", "aws_cloudwatch_log_resource_policy"), "__ARN_COLUMN__", "policy_name")
 
   tags = merge(local.aws_perimeter_common_tags, {
     service = "AWS/CloudWatch"
@@ -620,7 +588,7 @@ control "cloudwatch_log_resource_policy_prohibit_public_access" {
 control "codeartifact_domain_policy_prohibit_public_access" {
   title       = "CodeArtifact domain policies should prohibit public access"
   description = "Check if CodeArtifact domain policies allow public access."
-  sql         = replace(replace(local.resource_policy_public_sql, "__TABLE_NAME__", "aws_codeartifact_domain"), "__ARN_COLUMN__", "arn")
+  sql         = replace(replace(local.resource_policy_public_sql_general, "__TABLE_NAME__", "aws_codeartifact_domain"), "__ARN_COLUMN__", "arn")
 
   tags = merge(local.aws_perimeter_common_tags, {
     service = "AWS/CodeArtifact"
@@ -630,7 +598,7 @@ control "codeartifact_domain_policy_prohibit_public_access" {
 control "codeartifact_repository_policy_prohibit_public_access" {
   title       = "CodeArtifact repository policies should prohibit public access"
   description = "Check if CodeArtifact repository policies allow public access."
-  sql         = replace(replace(local.resource_policy_public_sql, "__TABLE_NAME__", "aws_codeartifact_repository"), "__ARN_COLUMN__", "arn")
+  sql         = replace(replace(local.resource_policy_public_sql_general, "__TABLE_NAME__", "aws_codeartifact_repository"), "__ARN_COLUMN__", "arn")
 
   tags = merge(local.aws_perimeter_common_tags, {
     service = "AWS/CodeArtifact"
@@ -640,7 +608,7 @@ control "codeartifact_repository_policy_prohibit_public_access" {
 control "ecr_repository_policy_prohibit_public_access" {
   title       = "ECR repository policies should prohibit public access"
   description = "Check if ECR repository policies allow public access."
-  sql         = replace(replace(local.resource_policy_public_sql, "__TABLE_NAME__", "aws_ecr_repository"), "__ARN_COLUMN__", "arn")
+  sql         = replace(replace(local.resource_policy_public_sql_general, "__TABLE_NAME__", "aws_ecr_repository"), "__ARN_COLUMN__", "arn")
 
   tags = merge(local.aws_perimeter_common_tags, {
     service = "AWS/ECR"
@@ -650,7 +618,7 @@ control "ecr_repository_policy_prohibit_public_access" {
 control "efs_file_system_policy_prohibit_public_access" {
   title       = "EFS file system policies should prohibit public access"
   description = "Check if EFS file system policies allow public access."
-  sql         = replace(replace(local.resource_policy_public_sql, "__TABLE_NAME__", "aws_efs_file_system"), "__ARN_COLUMN__", "arn")
+  sql         = replace(replace(local.resource_policy_public_sql_general, "__TABLE_NAME__", "aws_efs_file_system"), "__ARN_COLUMN__", "arn")
 
   tags = merge(local.aws_perimeter_common_tags, {
     service = "AWS/EFS"
@@ -660,101 +628,8 @@ control "efs_file_system_policy_prohibit_public_access" {
 control "elasticsearch_domain_policy_prohibit_public_access" {
   title       = "ES domain policies should prohibit public access"
   description = "Check if ES domain policies allow public access."
+  sql         = replace(replace(local.resource_policy_public_sql_general, "__TABLE_NAME__", "aws_elasticsearch_domain"), "__ARN_COLUMN__", "arn")
 
-  sql = <<-EOQ
-    with wildcard_action_policies as (
-      select
-        arn,
-        count(*) as statements_num
-      from
-        aws_elasticsearch_domain,
-        jsonb_array_elements(policy_std -> 'Statement') as s
-      where
-        s ->> 'Effect' = 'Allow'
-        -- aws:SourceOwner
-        and s -> 'Condition' -> 'StringEquals' -> 'aws:sourceowner' is null
-        and s -> 'Condition' -> 'StringEqualsIgnoreCase' -> 'aws:sourceowner' is null
-        and (
-          s -> 'Condition' -> 'StringLike' -> 'aws:sourceowner' is null
-          or s -> 'Condition' -> 'StringLike' -> 'aws:sourceowner' ? '*'
-        )
-        -- aws:SourceAccount
-        and s -> 'Condition' -> 'StringEquals' -> 'aws:sourceaccount' is null
-        and s -> 'Condition' -> 'StringEqualsIgnoreCase' -> 'aws:sourceaccount' is null
-        and (
-          s -> 'Condition' -> 'StringLike' -> 'aws:sourceaccount' is null
-          or s -> 'Condition' -> 'StringLike' -> 'aws:sourceaccount' ? '*'
-        )
-        -- aws:PrincipalOrgID
-        and s -> 'Condition' -> 'StringEquals' -> 'aws:principalorgid' is null
-        and s -> 'Condition' -> 'StringEqualsIgnoreCase' -> 'aws:principalorgid' is null
-        and (
-          s -> 'Condition' -> 'StringLike' -> 'aws:principalorgid' is null
-          or s -> 'Condition' -> 'StringLike' -> 'aws:principalorgid' ? '*'
-        )
-        -- aws:PrincipalAccount
-        and s -> 'Condition' -> 'StringEquals' -> 'aws:principalaccount' is null
-        and s -> 'Condition' -> 'StringEqualsIgnoreCase' -> 'aws:principalaccount' is null
-        and (
-          s -> 'Condition' -> 'StringLike' -> 'aws:principalaccount' is null
-          or s -> 'Condition' -> 'StringLike' -> 'aws:principalaccount' ? '*'
-        )
-        -- aws:PrincipalArn
-        and s -> 'Condition' -> 'StringEquals' -> 'aws:principalarn' is null
-        and s -> 'Condition' -> 'StringEqualsIgnoreCase' -> 'aws:principalarn' is null
-        and (
-          s -> 'Condition' -> 'StringLike' -> 'aws:principalarn' is null
-          or s -> 'Condition' -> 'StringLike' -> 'aws:principalarn' ? '*'
-        )
-        and (
-          s -> 'Condition' -> 'ArnEquals' -> 'aws:principalarn' is null
-          or s -> 'Condition' -> 'ArnEquals' -> 'aws:principalarn' ? '*'
-        )
-        and (
-          s -> 'Condition' -> 'ArnLike' -> 'aws:principalarn' is null
-          or s -> 'Condition' -> 'ArnLike' -> 'aws:principalarn' ? '*'
-        )
-        -- aws:SourceArn
-        and s -> 'Condition' -> 'StringEquals' -> 'aws:sourcearn' is null
-        and s -> 'Condition' -> 'StringEqualsIgnoreCase' -> 'aws:sourcearn' is null
-        and (
-          s -> 'Condition' -> 'StringLike' -> 'aws:sourcearn' is null
-          or s -> 'Condition' -> 'StringLike' -> 'aws:sourcearn' ? '*'
-        )
-        and (
-          s -> 'Condition' -> 'ArnEquals' -> 'aws:sourcearn' is null
-          or s -> 'Condition' -> 'ArnEquals' -> 'aws:sourcearn' ? '*'
-        )
-        and (
-          s -> 'Condition' -> 'ArnLike' -> 'aws:sourcearn' is null
-          or s -> 'Condition' -> 'ArnLike' -> 'aws:sourcearn' ? '*'
-        )
-        and (
-          s -> 'Principal' -> 'AWS' = '["*"]'
-          or s ->> 'Principal' = '*'
-        )
-      group by
-        arn
-    )
-    select
-      r.arn as resource,
-      case
-        when r.policy_std is null then 'info'
-        when p.arn is null then 'ok'
-        else 'alarm'
-      end as status,
-      case
-        when r.policy_std is null then title || ' does not have a defined policy or has insufficient access to the policy.'
-        when p.arn is null then title || ' policy does not allow public access.'
-        else title || ' policy contains ' || coalesce(p.statements_num, 0) ||
-        ' statement(s) that allow public access.'
-      end as reason
-      ${local.tag_dimensions_sql}
-      ${local.common_dimensions_sql}
-    from
-      aws_elasticsearch_domain as r
-      left join wildcard_action_policies as p on p.arn = r.arn
-    EOQ
 
     tags = merge(local.aws_perimeter_common_tags, {
     service = "AWS/ES"
@@ -764,7 +639,7 @@ control "elasticsearch_domain_policy_prohibit_public_access" {
 control "eventbridge_bus_policy_prohibit_public_access" {
   title       = "EventBridge bus policies should prohibit public access"
   description = "Check if EventBridge bus  policies allow public access."
-  sql         = replace(replace(local.resource_policy_public_sql, "__TABLE_NAME__", "aws_eventbridge_bus"), "__ARN_COLUMN__", "arn")
+  sql         = replace(replace(local.resource_policy_public_sql_general, "__TABLE_NAME__", "aws_eventbridge_bus"), "__ARN_COLUMN__", "arn")
 
   tags = merge(local.aws_perimeter_common_tags, {
     service = "AWS/EventBridge"
@@ -774,7 +649,7 @@ control "eventbridge_bus_policy_prohibit_public_access" {
 control "glacier_vault_policy_prohibit_public_access" {
   title       = "Glacier vault policies should prohibit public access"
   description = "Check if Glacier vault policies allow public access."
-  sql         = replace(replace(local.resource_policy_public_sql, "__TABLE_NAME__", "aws_glacier_vault"), "__ARN_COLUMN__", "vault_arn")
+  sql         = replace(replace(local.resource_policy_public_sql_general, "__TABLE_NAME__", "aws_glacier_vault"), "__ARN_COLUMN__", "vault_arn")
 
   tags = merge(local.aws_perimeter_common_tags, {
     service = "AWS/Glacier"
@@ -784,93 +659,7 @@ control "glacier_vault_policy_prohibit_public_access" {
 control "iam_role_trust_policy_prohibit_public_access" {
   title       = "IAM role trust policies should prohibit public access"
   description = "Check if IAM role trust policies provide public access, allowing any principal to assume the role."
-
-  sql = <<-EOQ
-    with wildcard_action_policies as (
-      select
-        arn,
-        count(*) as statements_num
-      from
-        aws_iam_role,
-        jsonb_array_elements(assume_role_policy_std -> 'Statement') as s
-      where
-        s ->> 'Effect' = 'Allow'
-        -- aws:SourceOwner
-        and s -> 'Condition' -> 'StringEquals' -> 'aws:sourceowner' is null
-        and s -> 'Condition' -> 'StringEqualsIgnoreCase' -> 'aws:sourceowner' is null
-        and (
-          s -> 'Condition' -> 'StringLike' -> 'aws:sourceowner' is null
-          or s -> 'Condition' -> 'StringLike' -> 'aws:sourceowner' ? '*'
-        )
-        -- aws:SourceAccount
-        and s -> 'Condition' -> 'StringEquals' -> 'aws:sourceaccount' is null
-        and s -> 'Condition' -> 'StringEqualsIgnoreCase' -> 'aws:sourceaccount' is null
-        and (
-          s -> 'Condition' -> 'StringLike' -> 'aws:sourceaccount' is null
-          or s -> 'Condition' -> 'StringLike' -> 'aws:sourceaccount' ? '*'
-        )
-        -- aws:PrincipalOrgID
-        and s -> 'Condition' -> 'StringEquals' -> 'aws:principalorgid' is null
-        and s -> 'Condition' -> 'StringEqualsIgnoreCase' -> 'aws:principalorgid' is null
-        and (
-          s -> 'Condition' -> 'StringLike' -> 'aws:principalorgid' is null
-          or s -> 'Condition' -> 'StringLike' -> 'aws:principalorgid' ? '*'
-        )
-        -- aws:PrincipalAccount
-        and s -> 'Condition' -> 'StringEquals' -> 'aws:principalaccount' is null
-        and s -> 'Condition' -> 'StringEqualsIgnoreCase' -> 'aws:principalaccount' is null
-        and (
-          s -> 'Condition' -> 'StringLike' -> 'aws:principalaccount' is null
-          or s -> 'Condition' -> 'StringLike' -> 'aws:principalaccount' ? '*'
-        )
-        -- aws:PrincipalArn
-        and s -> 'Condition' -> 'StringEquals' -> 'aws:principalarn' is null
-        and s -> 'Condition' -> 'StringEqualsIgnoreCase' -> 'aws:principalarn' is null
-        and (
-          s -> 'Condition' -> 'StringLike' -> 'aws:principalarn' is null
-          or s -> 'Condition' -> 'StringLike' -> 'aws:principalarn' ? '*'
-        )
-        and s -> 'Condition' -> 'ArnEquals' -> 'aws:principalarn' is null
-        and (
-          s -> 'Condition' -> 'ArnLike' -> 'aws:principalarn' is null
-          or s -> 'Condition' -> 'ArnLike' -> 'aws:principalarn' ? '*'
-        )
-        -- aws:SourceArn
-        and s -> 'Condition' -> 'StringEquals' -> 'aws:sourcearn' is null
-        and s -> 'Condition' -> 'StringEqualsIgnoreCase' -> 'aws:sourcearn' is null
-        and (
-          s -> 'Condition' -> 'StringLike' -> 'aws:sourcearn' is null
-          or s -> 'Condition' -> 'StringLike' -> 'aws:sourcearn' ? '*'
-        )
-        and s -> 'Condition' -> 'ArnEquals' -> 'aws:sourcearn' is null
-        and (
-          s -> 'Condition' -> 'ArnLike' -> 'aws:sourcearn' is null
-          or s -> 'Condition' -> 'ArnLike' -> 'aws:sourcearn' ? '*'
-        )
-        and (
-          s -> 'Principal' -> 'AWS' = '["*"]'
-          or s ->> 'Principal' = '*'
-        )
-      group by
-        arn
-    )
-    select
-      r.arn as resource,
-      case
-        when p.arn is null then 'ok'
-        else 'alarm'
-      end as status,
-      case
-        when p.arn is null then title || ' trust policy does not allow public access.'
-        else title || ' trust policy contains ' || coalesce(p.statements_num, 0) ||
-        ' statement(s) that allow public access.'
-      end as reason
-      ${local.tag_dimensions_sql}
-      ${replace(local.common_dimensions_qualifier_sql, "__QUALIFIER__", "r.")}
-    from
-      aws_iam_role as r
-      left join wildcard_action_policies as p on p.arn = r.arn;
-  EOQ
+  sql         = replace(replace(local.resource_policy_public_sql_account, "__TABLE_NAME__", "aws_iam_role"), "__ARN_COLUMN__", "arn")
 
   tags = merge(local.aws_perimeter_common_tags, {
     service = "AWS/IAM"
@@ -880,107 +669,7 @@ control "iam_role_trust_policy_prohibit_public_access" {
 control "kms_key_policy_prohibit_public_access" {
   title       = "KMS key policies should prohibit public access"
   description = "Check if KMS key policies allow public access."
-  sql         = <<-EOQ
-    with wildcard_action_policies as (
-      select
-        arn,
-        count(*) as statements_num
-      from
-        aws_kms_key,
-        jsonb_array_elements(policy_std -> 'Statement') as s
-      where
-        s ->> 'Effect' = 'Allow'
-        -- kms:CallerAccount
-       and s -> 'Condition' -> 'StringEquals' -> 'kms:calleraccount' is null
-        and s -> 'Condition' -> 'StringEqualsIgnoreCase' -> 'kms:calleraccount' is null
-        and (
-          s -> 'Condition' -> 'StringLike' -> 'kms:calleraccount' is null
-          or s -> 'Condition' -> 'StringLike' -> 'kms:calleraccount' ? '*'
-        )
-        -- aws:SourceOwner
-        and s -> 'Condition' -> 'StringEquals' -> 'aws:sourceowner' is null
-        and s -> 'Condition' -> 'StringEqualsIgnoreCase' -> 'aws:sourceowner' is null
-        and (
-          s -> 'Condition' -> 'StringLike' -> 'aws:sourceowner' is null
-          or s -> 'Condition' -> 'StringLike' -> 'aws:sourceowner' ? '*'
-        )
-        -- aws:SourceAccount
-        and s -> 'Condition' -> 'StringEquals' -> 'aws:sourceaccount' is null
-        and s -> 'Condition' -> 'StringEqualsIgnoreCase' -> 'aws:sourceaccount' is null
-        and (
-          s -> 'Condition' -> 'StringLike' -> 'aws:sourceaccount' is null
-          or s -> 'Condition' -> 'StringLike' -> 'aws:sourceaccount' ? '*'
-        )
-        -- aws:PrincipalOrgID
-        and s -> 'Condition' -> 'StringEquals' -> 'aws:principalorgid' is null
-        and s -> 'Condition' -> 'StringEqualsIgnoreCase' -> 'aws:principalorgid' is null
-        and (
-          s -> 'Condition' -> 'StringLike' -> 'aws:principalorgid' is null
-          or s -> 'Condition' -> 'StringLike' -> 'aws:principalorgid' ? '*'
-        )
-        -- aws:PrincipalAccount
-        and s -> 'Condition' -> 'StringEquals' -> 'aws:principalaccount' is null
-        and s -> 'Condition' -> 'StringEqualsIgnoreCase' -> 'aws:principalaccount' is null
-        and (
-          s -> 'Condition' -> 'StringLike' -> 'aws:principalaccount' is null
-          or s -> 'Condition' -> 'StringLike' -> 'aws:principalaccount' ? '*'
-        )
-        -- aws:PrincipalArn
-        and s -> 'Condition' -> 'StringEquals' -> 'aws:principalarn' is null
-        and s -> 'Condition' -> 'StringEqualsIgnoreCase' -> 'aws:principalarn' is null
-        and (
-          s -> 'Condition' -> 'StringLike' -> 'aws:principalarn' is null
-          or s -> 'Condition' -> 'StringLike' -> 'aws:principalarn' ? '*'
-        )
-        and (
-          s -> 'Condition' -> 'ArnEquals' -> 'aws:principalarn' is null
-          or s -> 'Condition' -> 'ArnEquals' -> 'aws:principalarn' ? '*'
-        )
-        and (
-          s -> 'Condition' -> 'ArnLike' -> 'aws:principalarn' is null
-          or s -> 'Condition' -> 'ArnLike' -> 'aws:principalarn' ? '*'
-        )
-        -- aws:SourceArn
-        and s -> 'Condition' -> 'StringEquals' -> 'aws:sourcearn' is null
-        and s -> 'Condition' -> 'StringEqualsIgnoreCase' -> 'aws:sourcearn' is null
-        and (
-          s -> 'Condition' -> 'StringLike' -> 'aws:sourcearn' is null
-          or s -> 'Condition' -> 'StringLike' -> 'aws:sourcearn' ? '*'
-        )
-        and (
-          s -> 'Condition' -> 'ArnEquals' -> 'aws:sourcearn' is null
-          or s -> 'Condition' -> 'ArnEquals' -> 'aws:sourcearn' ? '*'
-        )
-        and (
-          s -> 'Condition' -> 'ArnLike' -> 'aws:sourcearn' is null
-          or s -> 'Condition' -> 'ArnLike' -> 'aws:sourcearn' ? '*'
-        )
-        and (
-          s -> 'Principal' -> 'AWS' = '["*"]'
-          or s ->> 'Principal' = '*'
-        )
-      group by
-        arn
-    )
-    select
-      r.arn as resource,
-      case
-        when p.arn is null then 'ok'
-        else 'alarm'
-      end as status,
-      case
-        when p.arn is null then title || ' policy does not allow public access.'
-        else title || ' policy contains ' || coalesce(p.statements_num, 0) ||
-        ' statement(s) that allow public access.'
-      end as reason
-      ${local.tag_dimensions_sql}
-      ${local.common_dimensions_sql}
-    from
-      aws_kms_key as r
-      left join wildcard_action_policies as p on p.arn = r.arn
-    where
-      key_manager = 'CUSTOMER';
-  EOQ
+  sql         = replace(replace(local.resource_policy_public_sql_for_kms, "__TABLE_NAME__", "aws_kms_key"), "__ARN_COLUMN__", "arn")
 
   tags = merge(local.aws_perimeter_common_tags, {
     service = "AWS/KMS"
@@ -990,7 +679,7 @@ control "kms_key_policy_prohibit_public_access" {
 control "lambda_function_policy_prohibit_public_access" {
   title       = "Lambda function policies should prohibit public access"
   description = "Check if Lambda function policies allow public access."
-  sql         = replace(replace(local.resource_policy_public_sql, "__TABLE_NAME__", "aws_lambda_function"), "__ARN_COLUMN__", "arn")
+  sql         = replace(replace(local.resource_policy_public_sql_general, "__TABLE_NAME__", "aws_lambda_function"), "__ARN_COLUMN__", "arn")
 
   tags = merge(local.aws_perimeter_common_tags, {
     service = "AWS/Lambda"
@@ -1000,7 +689,7 @@ control "lambda_function_policy_prohibit_public_access" {
 control "media_store_container_policy_prohibit_public_access" {
   title       = "Elemental MediaStore container policies should prohibit public access"
   description = "Check if Elemental MediaStore container policies allow public access."
-  sql         = replace(replace(local.resource_policy_public_sql, "__TABLE_NAME__", "aws_media_store_container"), "__ARN_COLUMN__", "arn")
+  sql         = replace(replace(local.resource_policy_public_sql_general, "__TABLE_NAME__", "aws_media_store_container"), "__ARN_COLUMN__", "arn")
 
   tags = merge(local.aws_perimeter_common_tags, {
     service = "AWS/ElementalMediaStore"
@@ -1010,7 +699,7 @@ control "media_store_container_policy_prohibit_public_access" {
 control "s3_bucket_policy_prohibit_public_access" {
   title       = "S3 bucket policies should prohibit public access"
   description = "Check if S3 bucket policies allow public access."
-  sql         = replace(replace(local.resource_policy_public_sql, "__TABLE_NAME__", "aws_s3_bucket"), "__ARN_COLUMN__", "arn")
+  sql         = replace(replace(local.resource_policy_public_sql_general, "__TABLE_NAME__", "aws_s3_bucket"), "__ARN_COLUMN__", "arn")
 
   tags = merge(local.aws_perimeter_common_tags, {
     service = "AWS/S3"
@@ -1020,7 +709,7 @@ control "s3_bucket_policy_prohibit_public_access" {
 control "secretsmanager_secret_policy_prohibit_public_access" {
   title       = "Secrets Manager secret policies should prohibit public access"
   description = "Check if Secrets Manager secret policies allow public access."
-  sql         = replace(replace(local.resource_policy_public_sql, "__TABLE_NAME__", "aws_secretsmanager_secret"), "__ARN_COLUMN__", "arn")
+  sql         = replace(replace(local.resource_policy_public_sql_general, "__TABLE_NAME__", "aws_secretsmanager_secret"), "__ARN_COLUMN__", "arn")
 
   tags = merge(local.aws_perimeter_common_tags, {
     service = "AWS/SecretsManager"
@@ -1030,7 +719,7 @@ control "secretsmanager_secret_policy_prohibit_public_access" {
 control "sns_topic_policy_prohibit_public_access" {
   title       = "SNS topic policies should prohibit public access"
   description = "Check if SNS topic policies allow public access."
-  sql         = replace(replace(local.resource_policy_public_sql, "__TABLE_NAME__", "aws_sns_topic"), "__ARN_COLUMN__", "topic_arn")
+  sql         = replace(replace(local.resource_policy_public_sql_general, "__TABLE_NAME__", "aws_sns_topic"), "__ARN_COLUMN__", "topic_arn")
 
   tags = merge(local.aws_perimeter_common_tags, {
     service = "AWS/SNS"
@@ -1040,7 +729,7 @@ control "sns_topic_policy_prohibit_public_access" {
 control "sqs_queue_policy_prohibit_public_access" {
   title       = "SQS queue policies should prohibit public access"
   description = "Check if SQS queue policies allow public access."
-  sql         = replace(replace(local.resource_policy_public_sql, "__TABLE_NAME__", "aws_sqs_queue"), "__ARN_COLUMN__", "queue_arn")
+  sql         = replace(replace(local.resource_policy_public_sql_general, "__TABLE_NAME__", "aws_sqs_queue"), "__ARN_COLUMN__", "queue_arn")
 
   tags = merge(local.aws_perimeter_common_tags, {
     service = "AWS/SQS"
