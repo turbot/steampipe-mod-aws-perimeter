@@ -7,3 +7,5 @@
 
 # Swap files
 *.swp
+
+steampipe.spvars
