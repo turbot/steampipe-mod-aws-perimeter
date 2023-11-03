@@ -10,9 +10,9 @@ Or in a terminal:
 
 Includes support for:
 
-* [Network Access](https://hub.steampipe.io/mods/turbot/aws-perimeter/controls/benchmark.network_access)
-* [Public Access](https://hub.steampipe.io/mods/turbot/aws-perimeter/controls/benchmark.public_access)
-* [Shared Access](https://hub.steampipe.io/mods/turbot/aws-perimeter/controls/benchmark.shared_access)
+* [Network Access](https://hub.steampipe.io/mods/turbot/aws_perimeter/controls/benchmark.network_access)
+* [Public Access](https://hub.steampipe.io/mods/turbot/aws_perimeter/controls/benchmark.public_access)
+* [Shared Access](https://hub.steampipe.io/mods/turbot/aws_perimeter/controls/benchmark.shared_access)
 
 ## Getting started
 

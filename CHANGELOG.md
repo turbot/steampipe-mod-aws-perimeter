@@ -1,3 +1,13 @@
+## v0.7 [2023-11-03]
+
+_Breaking changes_
+
+- Updated the plugin dependency section of the mod to use `min_version` instead of `version`. ([#45](https://github.com/turbot/steampipe-mod-aws-perimeter/pull/45))
+
+_Bug fixes_
+
+- Fixed the README to include correct links to the benchmarks. ([#47](https://github.com/turbot/steampipe-mod-aws-perimeter/pull/47)) (Thanks [@vil02](https://github.com/vil02) for the contribution!)
+
 ## v0.6 [2023-07-31]
 
 _Enhancements_
