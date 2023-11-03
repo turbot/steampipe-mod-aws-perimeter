@@ -6,7 +6,7 @@ _Breaking changes_
 
 _Bug fixes_
 
-- Fixed the README doc to include correct links to the benchmarks. ([#47](https://github.com/turbot/steampipe-mod-aws-perimeter/pull/47)) (Thanks [@vil02](https://github.com/vil02) for the contribution!)
+- Fixed the README to include correct links to the benchmarks. ([#47](https://github.com/turbot/steampipe-mod-aws-perimeter/pull/47)) (Thanks [@vil02](https://github.com/vil02) for the contribution!)
 
 ## v0.6 [2023-07-31]
 
