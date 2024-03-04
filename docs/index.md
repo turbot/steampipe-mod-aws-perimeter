@@ -10,8 +10,8 @@ Run security controls across all your AWS accounts to look for resources that ar
 
 ## Documentation
 
-- **[Benchmarks and controls →](https://hub.steampipe.io/mods/turbot/aws_perimeter/controls)**
-- **[Named queries →](https://hub.steampipe.io/mods/turbot/aws_perimeter/queries)**
+- **[Benchmarks and controls →](https://hub.powerpipe.io/mods/turbot/aws_perimeter/controls)**
+- **[Named queries →](https://hub.powerpipe.io/mods/turbot/aws_perimeter/queries)**
 
 ## Getting Started
 
@@ -85,7 +85,7 @@ Different output formats are also available, for more information please see
 
 ### Configuration
 
-Several benchmarks have [input variables](https://powerpipe-io/docs/build/mod-variables#input-variables) that can be configured to better match your environment and requirements. Each variable has a default defined in its source file, e.g., `perimeter/shared_access.sp`, but these can be overwritten in several ways:
+Several benchmarks have [input variables](https://powerpipe.io/docs/build/mod-variables#input-variables) that can be configured to better match your environment and requirements. Each variable has a default defined in its source file, e.g., `perimeter/shared_access.sp`, but these can be overwritten in several ways:
 
 - Copy and rename the `powerpipe.ppvars.example` file to `powerpipe.ppvars`, and then modify the variable values inside that file
 - Pass in a value on the command line:
@@ -122,11 +122,11 @@ The benchmark queries use common properties (like `account_id`, `connection_name
 - Set an environment variable:
 
   ```sh
-  PP_VAR_common_dimensions='["account_id", "connection_name", "region"]' steampipe check control.eks_cluster_endpoint_prohibit_public_access
+  PP_VAR_common_dimensions='["account_id", "connection_name", "region"]' powerpipe control run eks_cluster_endpoint_prohibit_public_access
   ```
 
   ```sh
-  PP_VAR_tag_dimensions='["Environment", "Owner"]' steampipe check control.large_ebs_volumes
+  PP_VAR_tag_dimensions='["Environment", "Owner"]' powerpipe control run large_ebs_volumes
   ```
 
 ## Open Source & Contributing
