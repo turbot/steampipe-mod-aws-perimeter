@@ -7,3 +7,7 @@
 
 # Swap files
 *.swp
+
+# Powerpipe variable files
+*.ppvars
+*.auto.ppvars

@@ -91,18 +91,18 @@ Several benchmarks have [input variables](https://powerpipe-io/docs/build/mod-va
 - Pass in a value on the command line:
 
   ```sh
-  steampipe check benchmark.shared_access --var='trusted_accounts=["123456789012", "123123123123"]'
+  powerpipe benchmark run shared_access --var='trusted_accounts=["123456789012", "123123123123"]'
   ```
 
 - Set an environment variable:
 
   ```sh
-  PP_VAR_trusted_accounts='["123456789012", "123123123123"]' steampipe check control.ram_resource_shared_with_trusted_accounts
+  PP_VAR_trusted_accounts='["123456789012", "123123123123"]' powerpipe control run ram_resource_shared_with_trusted_accounts
   ```
 
   - Note: When using environment variables, if the variable is defined in `powerpipe.ppvars` or passed in through the command line, either of those will take precedence over the environment variable value. For more information on variable definition precedence, please see the link below.
 
-These are only some of the ways you can set variables. For a full list, please see [Passing Input Variables](https://powerpipe-io/docs/build/mod-variables#passing-input-variables).
+These are only some of the ways you can set variables. For a full list, please see [Passing Input Variables](https://powerpipe.io/docs/build/mod-variables#passing-input-variables).
 
 ### Common and Tag Dimensions
 
