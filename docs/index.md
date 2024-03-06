@@ -6,7 +6,7 @@ Run security controls across all your AWS accounts to look for resources that ar
 <img src="https://raw.githubusercontent.com/turbot/steampipe-mod-aws-perimeter/main/docs/images/aws_perimeter_network_access_dashboard.png" width="50%" type="thumbnail"/>
 <img src="https://raw.githubusercontent.com/turbot/steampipe-mod-aws-perimeter/main/docs/images/aws_perimeter_public_access_dashboard.png" width="50%" type="thumbnail"/>
 <img src="https://raw.githubusercontent.com/turbot/steampipe-mod-aws-perimeter/main/docs/images/aws_perimeter_shared_access_dashboard.png" width="50%" type="thumbnail"/>
-<img src="https://raw.githubusercontent.com/turbot/steampipe-mod-aws-perimeter/main/docs/images/aws_perimeter_public_access_output.png" width="50%" type="thumbnail"/>
+<img src="https://raw.githubusercontent.com/turbot/steampipe-mod-aws-perimeter/main/docs/images/aws_perimeter_public_access_console.png" width="50%" type="thumbnail"/>
 
 ## Documentation
 
@@ -83,51 +83,55 @@ powerpipe control run ec2_instance_ami_prohibit_public_access
 Different output formats are also available, for more information please see
 [Output Formats](https://powerpipe.io/docs/reference/cli/benchmark#output-formats).
 
-### Configuration
+### Configure Variables
 
 Several benchmarks have [input variables](https://powerpipe.io/docs/build/mod-variables#input-variables) that can be configured to better match your environment and requirements. Each variable has a default defined in its source file, e.g., `perimeter/shared_access.sp`, but these can be overwritten in several ways:
 
-- Copy and rename the `powerpipe.ppvars.example` file to `powerpipe.ppvars`, and then modify the variable values inside that file
-- Pass in a value on the command line:
+It's easiest to setup your vars file, starting with the sample:
 
-  ```sh
-  powerpipe benchmark run shared_access --var='trusted_accounts=["123456789012", "123123123123"]'
-  ```
+```sh
+cp steampipe.spvars.example steampipe.spvars
+vi steampipe.spvars
+```
 
-- Set an environment variable:
+Alternatively you can pass variables on the command line:
 
-  ```sh
-  PP_VAR_trusted_accounts='["123456789012", "123123123123"]' powerpipe control run ram_resource_shared_with_trusted_accounts
-  ```
+```sh
+powerpipe benchmark run shared_access --var='trusted_accounts=["123456789012", "123123123123"]'
+```
 
-  - Note: When using environment variables, if the variable is defined in `powerpipe.ppvars` or passed in through the command line, either of those will take precedence over the environment variable value. For more information on variable definition precedence, please see the link below.
+Or through environment variables:
+
+```sh
+export PP_VAR_trusted_accounts='["123456789012", "123123123123"]'
+powerpipe control run ram_resource_shared_with_trusted_accounts
+```
 
 These are only some of the ways you can set variables. For a full list, please see [Passing Input Variables](https://powerpipe.io/docs/build/mod-variables#passing-input-variables).
 
 ### Common and Tag Dimensions
 
-The benchmark queries use common properties (like `account_id`, `connection_name` and `region`) and tags that are defined in the form of a default list of strings in the `mod.sp` file. These properties can be overwritten in several ways:
+The benchmark queries use common properties (like `account_id`, `connection_name` and `region`) and tags that are defined in the form of a default list of strings in the `variables.sp` file. These properties can be overwritten in several ways:
 
-- Copy and rename the `powerpipe.ppvars.example` file to `powerpipe.ppvars`, and then modify the variable values inside that file
-- Pass in a value on the command line:
+It's easiest to setup your vars file, starting with the sample:
 
-  ```sh
-  powerpipe benchmark run public_access_settings --var 'common_dimensions=["account_id", "connection_name", "region"]'
-  ```
+```sh
+cp steampipe.spvars.example steampipe.spvars
+vi steampipe.spvars
+```
 
-  ```sh
-  powerpipe benchmark run public_access_settings --var 'tag_dimensions=["Environment", "Owner"]'
-  ```
+Alternatively you can pass variables on the command line:
 
-- Set an environment variable:
+```sh
+powerpipe benchmark run public_access_settings --var 'common_dimensions=["account_id", "connection_name", "region"]'
+```
 
-  ```sh
-  PP_VAR_common_dimensions='["account_id", "connection_name", "region"]' powerpipe control run eks_cluster_endpoint_prohibit_public_access
-  ```
+Or through environment variables:
 
-  ```sh
-  PP_VAR_tag_dimensions='["Environment", "Owner"]' powerpipe control run large_ebs_volumes
-  ```
+```sh
+export PP_VAR_common_dimensions='["account_id", "connection_name", "region"]'
+powerpipe control run eks_cluster_endpoint_prohibit_public_access
+```
 
 ## Open Source & Contributing
 
