@@ -1,3 +1,7 @@
+## v1.0.0 [2024-10-22]
+
+This mod now requires [Powerpipe](https://powerpipe.io). [Steampipe](https://steampipe.io) users should check the [migration guide](https://powerpipe.io/blog/migrating-from-steampipe).
+
 ## v0.8 [2024-04-06]
 
 _Powerpipe_
