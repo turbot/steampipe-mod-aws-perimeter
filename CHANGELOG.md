@@ -1,3 +1,7 @@
+## v1.0.1 [2024-10-24]
+
+- Renamed `steampipe.spvars.example` files to `powerpipe.ppvars.example` and updated documentation. 
+
 ## v1.0.0 [2024-10-22]
 
 This mod now requires [Powerpipe](https://powerpipe.io). [Steampipe](https://steampipe.io) users should check the [migration guide](https://powerpipe.io/blog/migrating-from-steampipe).
