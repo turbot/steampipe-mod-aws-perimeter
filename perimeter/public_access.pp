@@ -33,7 +33,8 @@ benchmark "public_access_settings" {
     control.s3_bucket_acl_prohibit_public_write_access,
     control.s3_public_access_block_account,
     control.s3_public_access_block_bucket,
-    control.sagemaker_notebook_instance_direct_internet_access_disabled
+    control.sagemaker_notebook_instance_direct_internet_access_disabled,
+    control.neptune_db_instance_prohibit_public_access
   ]
 
   tags = merge(local.aws_perimeter_common_tags, {
@@ -275,6 +276,7 @@ control "rds_db_instance_prohibit_public_access" {
     service = "AWS/RDS"
   })
 }
+
 control "rds_db_cluster_snapshot_prohibit_public_access" {
   title       = "RDS DB cluster snapshots should not be publicly restorable"
   description = "This control checks whether RDS DB cluster snapshots prohibit access to other accounts. It is recommended that your RDS cluster snapshots should not be public in order to prevent potential leak or misuse of sensitive data or any other kind of security threat. If your RDS cluster snapshot is public; then the data which is backed up in that snapshot is accessible to all other AWS accounts."
@@ -538,6 +540,32 @@ control "s3_bucket_acl_prohibit_public_write_access" {
 
   tags = merge(local.aws_perimeter_common_tags, {
     service = "AWS/S3"
+  })
+}
+
+control "neptune_db_instance_prohibit_public_access" {
+  title       = "Neptune DB instances should prohibit public access"
+  description = "Manage access to resources in the AWS Cloud by ensuring that Neptune DB instances are not public. Neptune DB instances can contain sensitive information and principles of least privilege access should be applied."
+
+  sql = <<-EOQ
+    select
+      arn as resource,
+      case
+        when publicly_accessible then 'alarm'
+        else 'ok'
+      end status,
+      case
+        when publicly_accessible then title || ' publicly accessible.'
+        else title || ' not publicly accessible.'
+      end reason
+      ${local.tag_dimensions_sql}
+      ${local.common_dimensions_sql}
+    from
+      aws_neptune_db_instance;
+  EOQ
+
+  tags = merge(local.aws_perimeter_common_tags, {
+    service = "AWS/Neptune"
   })
 }
 

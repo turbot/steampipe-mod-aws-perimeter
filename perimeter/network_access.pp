@@ -18,18 +18,19 @@ benchmark "network_general_access" {
   description   = "Resources should follow general best practices to safeguard from exposure to public access."
   documentation = file("./perimeter/docs/network_general_access.md")
   children = [
-    control.apprunner_service_in_vpc,
     control.ec2_instance_in_vpc,
     control.elb_application_lb_waf_enabled,
     control.es_domain_in_vpc,
-    control.grafana_workspace_in_vpc,
+    control.glue_connection_use_secure_connection,
+    control.glue_dev_endpoint_in_vpc,
     control.lambda_function_in_vpc,
-    control.memorydb_cluster_in_vpc,
+    control.neptune_db_instance_in_vpc,
     control.opensearch_domain_in_vpc,
     control.rds_db_instance_in_vpc,
     control.sagemaker_model_in_vpc,
     control.sagemaker_notebook_instance_in_vpc,
     control.sagemaker_training_job_in_vpc,
+    control.transfer_server_in_vpc,
     control.vpc_peering_connection_cross_account_shared
   ]
 
@@ -705,80 +706,110 @@ control "vpc_subnet_auto_assign_public_ip_disabled" {
   })
 }
 
-control "apprunner_service_in_vpc" {
-  title       = "App Runner services should be in a VPC"
-  description = "Deploy App Runner services within a VPC to enable secure communication between the service and other resources without requiring internet access."
+control "neptune_db_instance_in_vpc" {
+  title       = "Neptune DB instances should be in a VPC"
+  description = "Deploy Neptune DB instances within a VPC to enable secure communication between the instance and other services within the VPC, without requiring internet gateway, NAT device, or VPN connection."
 
   sql = <<-EOQ
     select
       arn as resource,
       case
-        when network_configuration -> 'EgressConfiguration' ->> 'EgressType' = 'VPC' then 'ok'
-        else 'alarm'
+        when db_subnet_group_name is null then 'alarm'
+        else 'ok'
       end as status,
       case
-        when network_configuration -> 'EgressConfiguration' ->> 'EgressType' = 'VPC' then title || ' is in VPC.'
-        else title || ' is not in VPC.'
-      end as reason,
-      region,
-      account_id
+        when db_subnet_group_name is null then title || ' not in VPC.'
+        else title || ' in VPC.'
+      end as reason
+      ${local.tag_dimensions_sql}
+      ${local.common_dimensions_sql}
     from
-      aws_app_runner_service;
+      aws_neptune_db_instance;
   EOQ
 
   tags = merge(local.aws_perimeter_common_tags, {
-    service = "AWS/AppRunner"
+    service = "AWS/Neptune"
   })
 }
 
-control "grafana_workspace_in_vpc" {
-  title       = "Grafana workspaces should be in a VPC"
-  description = "Deploy Grafana workspaces within a VPC to enable secure communication between the workspace and other resources without requiring internet access."
+control "glue_dev_endpoint_in_vpc" {
+  title       = "Glue development endpoints should be in a VPC"
+  description = "Deploy AWS Glue development endpoints within a VPC to enable secure communication between the endpoint and other services within the VPC, without requiring internet gateway, NAT device, or VPN connection."
 
   sql = <<-EOQ
     select
       arn as resource,
       case
-        when vpc_configuration -> 'SecurityGroupIds' is not null then 'ok'
-        else 'alarm'
-      end as status,
+        when vpc_id is null then 'alarm'
+        else 'ok'
+      end status,
       case
-        when vpc_configuration -> 'SecurityGroupIds' is not null then title || ' is in VPC.'
-        else title || ' is not in VPC.'
-      end as reason,
-      region,
-      account_id
+        when vpc_id is null then title || ' not in VPC.'
+        else title || ' in VPC ' || vpc_id || '.'
+      end reason
+      ${local.tag_dimensions_sql}
+      ${local.common_dimensions_sql}
     from
-      aws_grafana_workspace;
+      aws_glue_dev_endpoint;
   EOQ
 
   tags = merge(local.aws_perimeter_common_tags, {
-    service = "AWS/Grafana"
+    service = "AWS/Glue"
   })
 }
 
-control "memorydb_cluster_in_vpc" {
-  title       = "MemoryDB clusters should be in a VPC"
-  description = "Deploy MemoryDB clusters within a VPC to enable secure communication between the cluster and other resources without requiring internet access."
+control "glue_connection_use_secure_connection" {
+  title       = "Glue connections should use secure connection types"
+  description = "Ensure AWS Glue connections use secure connection types like JDBC with SSL or network connections through VPC. Avoid using insecure connection methods that could expose sensitive data."
 
   sql = <<-EOQ
     select
       arn as resource,
       case
-        when vpc_id is not null then 'ok'
+        when connection_type = 'NETWORK' and physical_connection_requirements ->> 'SecurityGroupIdList' is not null then 'ok'
+        when connection_type = 'JDBC' and connection_properties ->> 'JDBC_ENFORCE_SSL' = 'true' then 'ok'
         else 'alarm'
-      end as status,
+      end status,
       case
-        when vpc_id is not null then title || ' is in VPC ' || vpc_id || '.'
-        else title || ' is not in VPC.'
-      end as reason,
-      region,
-      account_id
+        when connection_type = 'NETWORK' and physical_connection_requirements ->> 'SecurityGroupIdList' is not null 
+          then title || ' using secure network connection with security groups.'
+        when connection_type = 'JDBC' and connection_properties ->> 'JDBC_ENFORCE_SSL' = 'true' 
+          then title || ' using JDBC connection with SSL enforced.'
+        else title || ' using insecure connection configuration.'
+      end reason
+      ${local.tag_dimensions_sql}
+      ${local.common_dimensions_sql}
     from
-      aws_memorydb_cluster;
+      aws_glue_connection;
   EOQ
 
   tags = merge(local.aws_perimeter_common_tags, {
-    service = "AWS/MemoryDB"
+    service = "AWS/Glue"
+  })
+}
+
+control "transfer_server_in_vpc" {
+  title       = "Transfer Family servers should be in a VPC"
+  description = "Deploy AWS Transfer Family servers within a VPC to enable secure file transfer operations through VPC endpoints, providing enhanced security and network isolation."
+
+  sql = <<-EOQ
+    select
+      arn as resource,
+      case
+        when endpoint_type = 'VPC' and vpc_id is not null then 'ok'
+        else 'alarm'
+      end status,
+      case
+        when endpoint_type = 'VPC' and vpc_id is not null then title || ' in VPC ' || vpc_id || '.'
+        else title || ' not configured with VPC endpoint.'
+      end reason
+      ${local.tag_dimensions_sql}
+      ${local.common_dimensions_sql}
+    from
+      aws_transfer_server;
+  EOQ
+
+  tags = merge(local.aws_perimeter_common_tags, {
+    service = "AWS/Transfer"
   })
 }
