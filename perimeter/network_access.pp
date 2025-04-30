@@ -18,10 +18,13 @@ benchmark "network_general_access" {
   description   = "Resources should follow general best practices to safeguard from exposure to public access."
   documentation = file("./perimeter/docs/network_general_access.md")
   children = [
+    control.apprunner_service_in_vpc,
     control.ec2_instance_in_vpc,
     control.elb_application_lb_waf_enabled,
     control.es_domain_in_vpc,
+    control.grafana_workspace_in_vpc,
     control.lambda_function_in_vpc,
+    control.memorydb_cluster_in_vpc,
     control.opensearch_domain_in_vpc,
     control.rds_db_instance_in_vpc,
     control.sagemaker_model_in_vpc,
@@ -699,5 +702,83 @@ control "vpc_subnet_auto_assign_public_ip_disabled" {
 
   tags = merge(local.aws_perimeter_common_tags, {
     service = "AWS/VPC"
+  })
+}
+
+control "apprunner_service_in_vpc" {
+  title       = "App Runner services should be in a VPC"
+  description = "Deploy App Runner services within a VPC to enable secure communication between the service and other resources without requiring internet access."
+
+  sql = <<-EOQ
+    select
+      arn as resource,
+      case
+        when network_configuration -> 'EgressConfiguration' ->> 'EgressType' = 'VPC' then 'ok'
+        else 'alarm'
+      end as status,
+      case
+        when network_configuration -> 'EgressConfiguration' ->> 'EgressType' = 'VPC' then title || ' is in VPC.'
+        else title || ' is not in VPC.'
+      end as reason,
+      region,
+      account_id
+    from
+      aws_app_runner_service;
+  EOQ
+
+  tags = merge(local.aws_perimeter_common_tags, {
+    service = "AWS/AppRunner"
+  })
+}
+
+control "grafana_workspace_in_vpc" {
+  title       = "Grafana workspaces should be in a VPC"
+  description = "Deploy Grafana workspaces within a VPC to enable secure communication between the workspace and other resources without requiring internet access."
+
+  sql = <<-EOQ
+    select
+      arn as resource,
+      case
+        when vpc_configuration -> 'SecurityGroupIds' is not null then 'ok'
+        else 'alarm'
+      end as status,
+      case
+        when vpc_configuration -> 'SecurityGroupIds' is not null then title || ' is in VPC.'
+        else title || ' is not in VPC.'
+      end as reason,
+      region,
+      account_id
+    from
+      aws_grafana_workspace;
+  EOQ
+
+  tags = merge(local.aws_perimeter_common_tags, {
+    service = "AWS/Grafana"
+  })
+}
+
+control "memorydb_cluster_in_vpc" {
+  title       = "MemoryDB clusters should be in a VPC"
+  description = "Deploy MemoryDB clusters within a VPC to enable secure communication between the cluster and other resources without requiring internet access."
+
+  sql = <<-EOQ
+    select
+      arn as resource,
+      case
+        when vpc_id is not null then 'ok'
+        else 'alarm'
+      end as status,
+      case
+        when vpc_id is not null then title || ' is in VPC ' || vpc_id || '.'
+        else title || ' is not in VPC.'
+      end as reason,
+      region,
+      account_id
+    from
+      aws_memorydb_cluster;
+  EOQ
+
+  tags = merge(local.aws_perimeter_common_tags, {
+    service = "AWS/MemoryDB"
   })
 }

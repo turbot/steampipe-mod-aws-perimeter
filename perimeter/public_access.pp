@@ -18,10 +18,13 @@ benchmark "public_access_settings" {
   documentation = file("./perimeter/docs/public_access_settings.md")
   children = [
     control.api_gateway_rest_api_prohibit_public_access,
+    control.apprunner_service_prohibit_public_access,
     control.dms_replication_instance_not_publicly_accessible,
     control.ebs_snapshot_not_publicly_accessible,
     control.ec2_instance_ami_prohibit_public_access,
     control.eks_cluster_endpoint_prohibit_public_access,
+    control.grafana_workspace_prohibit_public_access,
+    control.memorydb_cluster_prohibit_public_access,
     control.rds_db_cluster_snapshot_prohibit_public_access,
     control.rds_db_instance_prohibit_public_access,
     control.rds_db_snapshot_prohibit_public_access,
@@ -64,6 +67,32 @@ control "api_gateway_rest_api_prohibit_public_access" {
   })
 }
 
+control "apprunner_service_prohibit_public_access" {
+  title       = "App Runner services should not be publicly accessible"
+  description = "This control checks whether App Runner services are configured to use VPC networking instead of public access. App Runner services should be deployed within a VPC to ensure secure communication and prevent unauthorized public access."
+
+  sql = <<-EOQ
+    select
+      arn as resource,
+      case
+        when network_configuration -> 'egress_configuration' ->> 'egress_type' = 'VPC' then 'ok'
+        else 'alarm'
+      end status,
+      case
+        when network_configuration -> 'egress_configuration' ->> 'egress_type' = 'VPC' then title || ' using VPC networking.'
+        else title || ' publicly accessible.'
+      end reason,
+      region,
+      account_id
+    from
+      aws_app_runner_service;
+  EOQ
+
+  tags = merge(local.aws_perimeter_common_tags, {
+    service = "AWS/AppRunner"
+  })
+}
+
 control "dms_replication_instance_not_publicly_accessible" {
   title       = "Database Migration Service (DMS) replication instances should not be public"
   description = "This control checks whether AWS DMS replication instances are public. A private replication instance has a private IP address that you cannot access outside of the replication network. A replication instance should have a private IP address when the source and target databases are in the same network, and the network is connected to the replication instance's VPC using a VPN, AWS Direct Connect, or VPC peering."
@@ -92,7 +121,7 @@ control "dms_replication_instance_not_publicly_accessible" {
 
 control "ebs_snapshot_not_publicly_accessible" {
   title       = "EBS snapshots should not be publicly restorable"
-  description = "This control checks whether EBS snapshots are publicly restorable by everyone, which makes them public. EBS snapshots should not be publicly restorable by everyone unless you explicitly allow it, to avoid accidental exposure of your company’s sensitive data."
+  description = "This control checks whether EBS snapshots are publicly restorable by everyone, which makes them public. EBS snapshots should not be publicly restorable by everyone unless you explicitly allow it, to avoid accidental exposure of your company's sensitive data."
 
   sql = <<-EOQ
     select
@@ -166,6 +195,58 @@ control "eks_cluster_endpoint_prohibit_public_access" {
 
   tags = merge(local.aws_perimeter_common_tags, {
     service = "AWS/EKS"
+  })
+}
+
+control "grafana_workspace_prohibit_public_access" {
+  title       = "Grafana workspaces should not be publicly accessible"
+  description = "Ensure Grafana workspaces are not configured for public access and are only accessible through VPC endpoints."
+
+  sql = <<-EOQ
+    select
+      arn as resource,
+      case
+        when authentication_providers ? 'SAML' or authentication_providers ? 'AWS_SSO' then 'ok'
+        else 'alarm'
+      end as status,
+      case
+        when authentication_providers ? 'SAML' or authentication_providers ? 'AWS_SSO' then title || ' uses secure authentication.'
+        else title || ' allows public access.'
+      end as reason,
+      region,
+      account_id
+    from
+      aws_grafana_workspace;
+  EOQ
+
+  tags = merge(local.aws_perimeter_common_tags, {
+    service = "AWS/Grafana"
+  })
+}
+
+control "memorydb_cluster_prohibit_public_access" {
+  title       = "MemoryDB clusters should not be publicly accessible"
+  description = "Ensure MemoryDB clusters are not accessible from the public internet and are properly secured within a VPC."
+
+  sql = <<-EOQ
+    select
+      arn as resource,
+      case
+        when vpc_id is not null and security_groups is not null then 'ok'
+        else 'alarm'
+      end as status,
+      case
+        when vpc_id is not null and security_groups is not null then title || ' is properly secured in VPC.'
+        else title || ' may be publicly accessible.'
+      end as reason,
+      region,
+      account_id
+    from
+      aws_memorydb_cluster;
+  EOQ
+
+  tags = merge(local.aws_perimeter_common_tags, {
+    service = "AWS/MemoryDB"
   })
 }
 
@@ -756,7 +837,7 @@ control "elasticsearch_domain_policy_prohibit_public_access" {
       left join wildcard_action_policies as p on p.arn = r.arn
     EOQ
 
-    tags = merge(local.aws_perimeter_common_tags, {
+  tags = merge(local.aws_perimeter_common_tags, {
     service = "AWS/ES"
   })
 }
