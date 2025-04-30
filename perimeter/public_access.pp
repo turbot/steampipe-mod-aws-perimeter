@@ -18,13 +18,11 @@ benchmark "public_access_settings" {
   documentation = file("./perimeter/docs/public_access_settings.md")
   children = [
     control.api_gateway_rest_api_prohibit_public_access,
-    control.apprunner_service_prohibit_public_access,
     control.dms_replication_instance_not_publicly_accessible,
     control.ebs_snapshot_not_publicly_accessible,
     control.ec2_instance_ami_prohibit_public_access,
+    control.ecr_repository_prohibit_public_access,
     control.eks_cluster_endpoint_prohibit_public_access,
-    control.grafana_workspace_prohibit_public_access,
-    control.memorydb_cluster_prohibit_public_access,
     control.rds_db_cluster_snapshot_prohibit_public_access,
     control.rds_db_instance_prohibit_public_access,
     control.rds_db_snapshot_prohibit_public_access,
@@ -33,8 +31,7 @@ benchmark "public_access_settings" {
     control.s3_bucket_acl_prohibit_public_write_access,
     control.s3_public_access_block_account,
     control.s3_public_access_block_bucket,
-    control.sagemaker_notebook_instance_direct_internet_access_disabled,
-    control.neptune_db_instance_prohibit_public_access
+    control.sagemaker_notebook_instance_direct_internet_access_disabled
   ]
 
   tags = merge(local.aws_perimeter_common_tags, {
@@ -65,32 +62,6 @@ control "api_gateway_rest_api_prohibit_public_access" {
 
   tags = merge(local.aws_perimeter_common_tags, {
     service = "AWS/APIGateway"
-  })
-}
-
-control "apprunner_service_prohibit_public_access" {
-  title       = "App Runner services should not be publicly accessible"
-  description = "This control checks whether App Runner services are configured to use VPC networking instead of public access. App Runner services should be deployed within a VPC to ensure secure communication and prevent unauthorized public access."
-
-  sql = <<-EOQ
-    select
-      arn as resource,
-      case
-        when network_configuration -> 'egress_configuration' ->> 'egress_type' = 'VPC' then 'ok'
-        else 'alarm'
-      end status,
-      case
-        when network_configuration -> 'egress_configuration' ->> 'egress_type' = 'VPC' then title || ' using VPC networking.'
-        else title || ' publicly accessible.'
-      end reason,
-      region,
-      account_id
-    from
-      aws_app_runner_service;
-  EOQ
-
-  tags = merge(local.aws_perimeter_common_tags, {
-    service = "AWS/AppRunner"
   })
 }
 
@@ -199,58 +170,6 @@ control "eks_cluster_endpoint_prohibit_public_access" {
   })
 }
 
-control "grafana_workspace_prohibit_public_access" {
-  title       = "Grafana workspaces should not be publicly accessible"
-  description = "Ensure Grafana workspaces are not configured for public access and are only accessible through VPC endpoints."
-
-  sql = <<-EOQ
-    select
-      arn as resource,
-      case
-        when authentication_providers ? 'SAML' or authentication_providers ? 'AWS_SSO' then 'ok'
-        else 'alarm'
-      end as status,
-      case
-        when authentication_providers ? 'SAML' or authentication_providers ? 'AWS_SSO' then title || ' uses secure authentication.'
-        else title || ' allows public access.'
-      end as reason,
-      region,
-      account_id
-    from
-      aws_grafana_workspace;
-  EOQ
-
-  tags = merge(local.aws_perimeter_common_tags, {
-    service = "AWS/Grafana"
-  })
-}
-
-control "memorydb_cluster_prohibit_public_access" {
-  title       = "MemoryDB clusters should not be publicly accessible"
-  description = "Ensure MemoryDB clusters are not accessible from the public internet and are properly secured within a VPC."
-
-  sql = <<-EOQ
-    select
-      arn as resource,
-      case
-        when vpc_id is not null and security_groups is not null then 'ok'
-        else 'alarm'
-      end as status,
-      case
-        when vpc_id is not null and security_groups is not null then title || ' is properly secured in VPC.'
-        else title || ' may be publicly accessible.'
-      end as reason,
-      region,
-      account_id
-    from
-      aws_memorydb_cluster;
-  EOQ
-
-  tags = merge(local.aws_perimeter_common_tags, {
-    service = "AWS/MemoryDB"
-  })
-}
-
 control "rds_db_instance_prohibit_public_access" {
   title       = "RDS DB instances should prohibit public access"
   description = "Manage access to resources in the AWS Cloud by ensuring that RDS instances are not public."
@@ -276,7 +195,6 @@ control "rds_db_instance_prohibit_public_access" {
     service = "AWS/RDS"
   })
 }
-
 control "rds_db_cluster_snapshot_prohibit_public_access" {
   title       = "RDS DB cluster snapshots should not be publicly restorable"
   description = "This control checks whether RDS DB cluster snapshots prohibit access to other accounts. It is recommended that your RDS cluster snapshots should not be public in order to prevent potential leak or misuse of sensitive data or any other kind of security threat. If your RDS cluster snapshot is public; then the data which is backed up in that snapshot is accessible to all other AWS accounts."
@@ -543,29 +461,29 @@ control "s3_bucket_acl_prohibit_public_write_access" {
   })
 }
 
-control "neptune_db_instance_prohibit_public_access" {
-  title       = "Neptune DB instances should prohibit public access"
-  description = "Manage access to resources in the AWS Cloud by ensuring that Neptune DB instances are not public. Neptune DB instances can contain sensitive information and principles of least privilege access should be applied."
+control "ecr_repository_prohibit_public_access" {
+  title       = "ECR repositories should not be publicly accessible"
+  description = "This control checks whether Amazon ECR repositories are configured to prohibit public access. ECR repositories should not be publicly accessible to prevent unauthorized access to container images and potential security risks."
 
   sql = <<-EOQ
     select
       arn as resource,
       case
-        when publicly_accessible then 'alarm'
+        when policy::jsonb @> '{"Statement":[{"Effect":"Allow","Principal":"*"}]}' then 'alarm'
         else 'ok'
       end status,
       case
-        when publicly_accessible then title || ' publicly accessible.'
-        else title || ' not publicly accessible.'
+        when policy::jsonb @> '{"Statement":[{"Effect":"Allow","Principal":"*"}]}' then title || ' has public access policy.'
+        else title || ' does not have public access policy.'
       end reason
       ${local.tag_dimensions_sql}
       ${local.common_dimensions_sql}
     from
-      aws_neptune_db_instance;
+      aws_ecr_repository;
   EOQ
 
   tags = merge(local.aws_perimeter_common_tags, {
-    service = "AWS/Neptune"
+    service = "AWS/ECR"
   })
 }
 

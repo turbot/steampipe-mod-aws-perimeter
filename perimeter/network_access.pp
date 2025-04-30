@@ -18,19 +18,17 @@ benchmark "network_general_access" {
   description   = "Resources should follow general best practices to safeguard from exposure to public access."
   documentation = file("./perimeter/docs/network_general_access.md")
   children = [
+    control.api_gateway_vpc_endpoint_restrictive_policy,
     control.ec2_instance_in_vpc,
     control.elb_application_lb_waf_enabled,
     control.es_domain_in_vpc,
-    control.glue_connection_use_secure_connection,
-    control.glue_dev_endpoint_in_vpc,
     control.lambda_function_in_vpc,
-    control.neptune_db_instance_in_vpc,
     control.opensearch_domain_in_vpc,
     control.rds_db_instance_in_vpc,
     control.sagemaker_model_in_vpc,
     control.sagemaker_notebook_instance_in_vpc,
     control.sagemaker_training_job_in_vpc,
-    control.transfer_server_in_vpc,
+    control.vpc_endpoint_restrictive_policy,
     control.vpc_peering_connection_cross_account_shared
   ]
 
@@ -706,110 +704,84 @@ control "vpc_subnet_auto_assign_public_ip_disabled" {
   })
 }
 
-control "neptune_db_instance_in_vpc" {
-  title       = "Neptune DB instances should be in a VPC"
-  description = "Deploy Neptune DB instances within a VPC to enable secure communication between the instance and other services within the VPC, without requiring internet gateway, NAT device, or VPN connection."
+control "api_gateway_vpc_endpoint_restrictive_policy" {
+  title       = "API Gateway VPC endpoints should have restrictive policies"
+  description = "This control checks whether API Gateway VPC endpoints have restrictive policies that limit access. VPC endpoints should have policies that restrict access to authorized principals only to minimize potential security risks."
 
   sql = <<-EOQ
+    with endpoint_policy_check as (
+      select
+        id,
+        arn,
+        title,
+        policy,
+        case
+          when policy is null then false
+          when policy::jsonb @> '{"Statement":[{"Effect":"Allow","Principal":"*"}]}' then false
+          else true
+        end as has_restrictive_policy
+    from
+      aws_vpc_endpoint
+    where
+      service_name like '%execute-api%'
+    )
     select
       arn as resource,
       case
-        when db_subnet_group_name is null then 'alarm'
-        else 'ok'
+        when has_restrictive_policy then 'ok'
+        else 'alarm'
       end as status,
       case
-        when db_subnet_group_name is null then title || ' not in VPC.'
-        else title || ' in VPC.'
+        when has_restrictive_policy then title || ' has restrictive endpoint policy.'
+        else title || ' has overly permissive or missing endpoint policy.'
       end as reason
       ${local.tag_dimensions_sql}
       ${local.common_dimensions_sql}
     from
-      aws_neptune_db_instance;
+      endpoint_policy_check;
   EOQ
 
   tags = merge(local.aws_perimeter_common_tags, {
-    service = "AWS/Neptune"
+    service = "AWS/APIGateway"
   })
 }
 
-control "glue_dev_endpoint_in_vpc" {
-  title       = "Glue development endpoints should be in a VPC"
-  description = "Deploy AWS Glue development endpoints within a VPC to enable secure communication between the endpoint and other services within the VPC, without requiring internet gateway, NAT device, or VPN connection."
+control "vpc_endpoint_restrictive_policy" {
+  title       = "VPC endpoints should have restrictive policies"
+  description = "This control checks whether VPC endpoints have restrictive policies that limit access. VPC endpoints should have policies that restrict access to authorized principals and actions to minimize potential security risks."
 
   sql = <<-EOQ
-    select
-      arn as resource,
-      case
-        when vpc_id is null then 'alarm'
-        else 'ok'
-      end status,
-      case
-        when vpc_id is null then title || ' not in VPC.'
-        else title || ' in VPC ' || vpc_id || '.'
-      end reason
-      ${local.tag_dimensions_sql}
-      ${local.common_dimensions_sql}
+    with endpoint_policy_check as (
+      select
+        id,
+        arn,
+        title,
+        policy,
+        case
+          when policy is null then false
+          when policy::jsonb @> '{"Statement":[{"Effect":"Allow","Principal":"*","Action":"*"}]}' then false
+          else true
+        end as has_restrictive_policy
     from
-      aws_glue_dev_endpoint;
-  EOQ
-
-  tags = merge(local.aws_perimeter_common_tags, {
-    service = "AWS/Glue"
-  })
-}
-
-control "glue_connection_use_secure_connection" {
-  title       = "Glue connections should use secure connection types"
-  description = "Ensure AWS Glue connections use secure connection types like JDBC with SSL or network connections through VPC. Avoid using insecure connection methods that could expose sensitive data."
-
-  sql = <<-EOQ
+      aws_vpc_endpoint
+    )
     select
       arn as resource,
       case
-        when connection_type = 'NETWORK' and physical_connection_requirements ->> 'SecurityGroupIdList' is not null then 'ok'
-        when connection_type = 'JDBC' and connection_properties ->> 'JDBC_ENFORCE_SSL' = 'true' then 'ok'
+        when has_restrictive_policy then 'ok'
         else 'alarm'
-      end status,
+      end as status,
       case
-        when connection_type = 'NETWORK' and physical_connection_requirements ->> 'SecurityGroupIdList' is not null 
-          then title || ' using secure network connection with security groups.'
-        when connection_type = 'JDBC' and connection_properties ->> 'JDBC_ENFORCE_SSL' = 'true' 
-          then title || ' using JDBC connection with SSL enforced.'
-        else title || ' using insecure connection configuration.'
-      end reason
+        when has_restrictive_policy then title || ' has restrictive endpoint policy.'
+        else title || ' has overly permissive or missing endpoint policy.'
+      end as reason
       ${local.tag_dimensions_sql}
       ${local.common_dimensions_sql}
     from
-      aws_glue_connection;
+      endpoint_policy_check;
   EOQ
 
   tags = merge(local.aws_perimeter_common_tags, {
-    service = "AWS/Glue"
-  })
-}
-
-control "transfer_server_in_vpc" {
-  title       = "Transfer Family servers should be in a VPC"
-  description = "Deploy AWS Transfer Family servers within a VPC to enable secure file transfer operations through VPC endpoints, providing enhanced security and network isolation."
-
-  sql = <<-EOQ
-    select
-      arn as resource,
-      case
-        when endpoint_type = 'VPC' and vpc_id is not null then 'ok'
-        else 'alarm'
-      end status,
-      case
-        when endpoint_type = 'VPC' and vpc_id is not null then title || ' in VPC ' || vpc_id || '.'
-        else title || ' not configured with VPC endpoint.'
-      end reason
-      ${local.tag_dimensions_sql}
-      ${local.common_dimensions_sql}
-    from
-      aws_transfer_server;
-  EOQ
-
-  tags = merge(local.aws_perimeter_common_tags, {
-    service = "AWS/Transfer"
+    service = "AWS/VPC"
   })
 }
