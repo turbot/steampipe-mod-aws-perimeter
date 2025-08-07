@@ -1,5 +1,5 @@
 benchmark "public_access" {
-  title         = "Public Access"
+  title         = "AWS Public Access"
   description   = "Resources should not be publicly accessible as they could expose sensitive data to bad actors."
   documentation = file("./perimeter/docs/public_access.md")
   children = [
@@ -13,7 +13,7 @@ benchmark "public_access" {
 }
 
 benchmark "public_access_settings" {
-  title         = "Public Access Settings"
+  title         = "AWS Public Access Settings"
   description   = "Resources should not be publicly accessible or exposed to the internet through configurations and settings."
   documentation = file("./perimeter/docs/public_access_settings.md")
   children = [
@@ -558,7 +558,7 @@ locals {
 }
 
 benchmark "resource_policy_public_access" {
-  title         = "Resource Policy Public Access"
+  title         = "AWS Resource Policy Public Access"
   description   = "Resources should not be publicly accessible through statements in their resource policies."
   documentation = file("./perimeter/docs/resource_policy_public_access.md")
   children = [
@@ -756,7 +756,7 @@ control "elasticsearch_domain_policy_prohibit_public_access" {
       left join wildcard_action_policies as p on p.arn = r.arn
     EOQ
 
-    tags = merge(local.aws_perimeter_common_tags, {
+  tags = merge(local.aws_perimeter_common_tags, {
     service = "AWS/ES"
   })
 }
