@@ -31,7 +31,7 @@ benchmark "shared_access" {
 }
 
 benchmark "ram_shared_access" {
-  title         = "AWS RAM Shared Access"
+  title         = "RAM Shared Access"
   description   = "AWS Resource Access Manager (RAM) helps you securely share your resources that you create in one AWS account with other AWS accounts. Resources shared through RAM should only be shared with trusted accounts."
   documentation = file("./perimeter/docs/ram_shared_access.md")
   children = [
@@ -249,7 +249,7 @@ control "ram_resource_shared_with_trusted_organization_units" {
 }
 
 benchmark "shared_access_settings" {
-  title         = "AWS Shared Access Settings"
+  title         = "Shared Access Settings"
   description   = "The AWS resource config shared access is a set of controls that detect if your deployed cloud resources are shared for use by principals outside of the AWS account that created the resource. This can be configured by modifying any parameter using sharing API."
   documentation = file("./perimeter/docs/shared_access_settings.md")
   children = [

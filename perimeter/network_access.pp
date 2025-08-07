@@ -14,7 +14,7 @@ benchmark "network_access" {
 }
 
 benchmark "network_general_access" {
-  title         = "AWS Network General Access"
+  title         = "Network General Access"
   description   = "Resources should follow general best practices to safeguard from exposure to public access."
   documentation = file("./perimeter/docs/network_general_access.md")
   children = [
@@ -331,7 +331,7 @@ control "vpc_peering_connection_cross_account_shared" {
 }
 
 benchmark "security_group_access" {
-  title         = "AWS Security Group Access"
+  title         = "Security Group Access"
   description   = "Security groups should restrict ingress and egress access to certain IP addresses and resources to prevent unwanted access."
   documentation = file("./perimeter/docs/security_group_access.md")
   children = [
@@ -514,7 +514,7 @@ control "vpc_security_group_restrict_ingress_common_ports_all" {
 }
 
 benchmark "public_ips" {
-  title         = "AWS Public IPs"
+  title         = "Public IPs"
   description   = "Resources should not have public IP addresses, as these can expose them to the internet."
   documentation = file("./perimeter/docs/public_ips.md")
   children = [

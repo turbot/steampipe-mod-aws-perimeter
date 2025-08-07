@@ -13,7 +13,7 @@ benchmark "public_access" {
 }
 
 benchmark "public_access_settings" {
-  title         = "AWS Public Access Settings"
+  title         = "Public Access Settings"
   description   = "Resources should not be publicly accessible or exposed to the internet through configurations and settings."
   documentation = file("./perimeter/docs/public_access_settings.md")
   children = [
@@ -558,7 +558,7 @@ locals {
 }
 
 benchmark "resource_policy_public_access" {
-  title         = "AWS Resource Policy Public Access"
+  title         = "Resource Policy Public Access"
   description   = "Resources should not be publicly accessible through statements in their resource policies."
   documentation = file("./perimeter/docs/resource_policy_public_access.md")
   children = [
