@@ -1,5 +1,5 @@
 benchmark "network_access" {
-  title         = "Network Access"
+  title         = "AWS Network Access"
   description   = "Resources should not be exposed to the internet through VPC settings, security group rules, or public IP addresses."
   documentation = file("./perimeter/docs/network_access.md")
   children = [

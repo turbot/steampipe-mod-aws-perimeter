@@ -17,7 +17,7 @@ variable "trusted_organization_units" {
 }
 
 benchmark "shared_access" {
-  title         = "Shared Access"
+  title         = "AWS Shared Access"
   description   = "Resources should only be shared with trusted entities through AWS Resource Access Manager (RAM), configurations, or resource policies."
   documentation = file("./perimeter/docs/shared_access.md")
   children = [
