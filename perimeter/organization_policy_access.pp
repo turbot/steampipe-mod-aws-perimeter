@@ -637,7 +637,7 @@ control "organizations_policy_attached" {
 }
 
 control "organizations_policy_size_within_limit" {
-  title       = "SCPs, RCPs and declarative policies should be within 80% of the policy size limit"
+  title       = "SCPs, RCPs and declarative policies should use less than 80% of the policy size limit"
   description = "AWS Organizations limits SCPs to 10,240 characters, RCPs to 5,120 and declarative policies to 10,000. A policy close to the limit can't take new statements. Size is estimated from the policy document without whitespace, as saved by the console."
 
   sql = <<-EOQ
@@ -897,7 +897,7 @@ control "organizations_scp_deny_statement_has_exemption" {
 }
 
 control "organizations_target_scp_attachments_within_limit" {
-  title       = "Roots, OUs and accounts should have SCP attachments within 80% of the limit"
+  title       = "Roots, OUs and accounts should use less than 80% of the SCP attachment limit"
   description = "AWS Organizations allows up to 10 SCPs to be attached directly to a root, OU or account. A target at the limit can't take another SCP, and a full set of attachments is often a sign of overlapping policies that should be combined."
   query       = query.organizations_target_policy_attachments_within_limit
 
@@ -913,7 +913,7 @@ control "organizations_target_scp_attachments_within_limit" {
 }
 
 control "organizations_target_rcp_attachments_within_limit" {
-  title       = "Roots, OUs and accounts should have RCP attachments within 80% of the limit"
+  title       = "Roots, OUs and accounts should use less than 80% of the RCP attachment limit"
   description = "AWS Organizations allows up to 5 RCPs to be attached directly to a root, OU or account, including RCPFullAWSAccess, which can't be detached."
   query       = query.organizations_target_policy_attachments_within_limit
 
