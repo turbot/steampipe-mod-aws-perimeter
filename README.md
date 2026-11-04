@@ -109,6 +109,16 @@ powerpipe control run ram_resource_shared_with_trusted_accounts
 
 These are only some of the ways you can set variables. For a full list, please see [Passing Input Variables](https://powerpipe.io/docs/build/mod-variables#passing-input-variables).
 
+### Organization Policy Access
+
+The `organization_policy_access` benchmark checks the service control policies (SCPs) and resource control policies (RCPs) in your AWS organization. AWS Organizations data is only available to the management account or a delegated administrator account, so run this benchmark against a connection for one of those accounts:
+
+```sh
+powerpipe benchmark run organization_policy_access --search-path-prefix aws_management
+```
+
+Accounts listed in the `trusted_accounts` variable and organizations listed in the `trusted_organizations` variable are trusted in addition to the organization's own accounts.
+
 ### Common and Tag Dimensions
 
 The benchmark queries use common properties (like `account_id`, `connection_name` and `region`) and tags that are defined in the form of a default list of strings in the `variables.sp` file. These properties can be overwritten in several ways:
