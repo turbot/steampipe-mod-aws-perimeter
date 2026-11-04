@@ -188,22 +188,17 @@ control "organizations_account_scp_restricts_root_user" {
       union all
       select a.id, a.id from aws_organizations_account as a
     ),
-    targets as (
-      select id from aws_organizations_root
-      union all
-      select id from aws_organizations_organizational_unit
-      union all
-      select id from aws_organizations_account
-    ),
     attachments as materialized (
       select
-        t.id as target_id,
-        pt.id,
-        pt.name,
-        pt.content
+        t ->> 'TargetId' as target_id,
+        p.id,
+        p.name,
+        p.content
       from
-        targets as t
-        join aws_organizations_policy_target as pt on pt.target_id = t.id and pt.type = 'SERVICE_CONTROL_POLICY'
+        aws_organizations_policy as p,
+        jsonb_array_elements(p.targets) as t
+      where
+        p.type = 'SERVICE_CONTROL_POLICY'
     ),
     root_statements as (
       select
@@ -287,22 +282,17 @@ control "organizations_account_scp_restricts_regions" {
       union all
       select a.id, a.id from aws_organizations_account as a
     ),
-    targets as (
-      select id from aws_organizations_root
-      union all
-      select id from aws_organizations_organizational_unit
-      union all
-      select id from aws_organizations_account
-    ),
     attachments as materialized (
       select
-        t.id as target_id,
-        pt.id,
-        pt.name,
-        pt.content
+        t ->> 'TargetId' as target_id,
+        p.id,
+        p.name,
+        p.content
       from
-        targets as t
-        join aws_organizations_policy_target as pt on pt.target_id = t.id and pt.type = 'SERVICE_CONTROL_POLICY'
+        aws_organizations_policy as p,
+        jsonb_array_elements(p.targets) as t
+      where
+        p.type = 'SERVICE_CONTROL_POLICY'
     ),
     region_statements as (
       select
@@ -601,19 +591,14 @@ control "organizations_policy_attached" {
       union all
       select arn, id, name, region, account_id from aws_organizations_policy where type = 'DECLARATIVE_POLICY_EC2' and not aws_managed
     ),
-    targets as (
-      select id from aws_organizations_root
-      union all
-      select id from aws_organizations_organizational_unit
-      union all
-      select id from aws_organizations_account
-    ),
     attached_policies as (
-      select pt.id from targets as t join aws_organizations_policy_target as pt on pt.target_id = t.id and pt.type = 'SERVICE_CONTROL_POLICY'
-      union
-      select pt.id from targets as t join aws_organizations_policy_target as pt on pt.target_id = t.id and pt.type = 'RESOURCE_CONTROL_POLICY'
-      union
-      select pt.id from targets as t join aws_organizations_policy_target as pt on pt.target_id = t.id and pt.type = 'DECLARATIVE_POLICY_EC2'
+      select
+        id
+      from
+        aws_organizations_policy
+      where
+        type in ('SERVICE_CONTROL_POLICY', 'RESOURCE_CONTROL_POLICY', 'DECLARATIVE_POLICY_EC2')
+        and jsonb_array_length(targets) > 0
     )
     select
       p.arn as resource,
@@ -807,7 +792,18 @@ control "organizations_scp_allow_list_not_overridden_by_full_access" {
         ) as allow_lists
       from
         targets as t
-        join aws_organizations_policy_target as pt on pt.target_id = t.id and pt.type = 'SERVICE_CONTROL_POLICY'
+        join (
+          select
+            pt ->> 'TargetId' as target_id,
+            p.id,
+            p.name,
+            p.content
+          from
+            aws_organizations_policy as p,
+            jsonb_array_elements(p.targets) as pt
+          where
+            p.type = 'SERVICE_CONTROL_POLICY'
+        ) as pt on pt.target_id = t.id
       group by
         t.arn
     )
@@ -838,25 +834,19 @@ control "organizations_scp_deny_statement_has_exemption" {
   description = "A deny statement without a principal exemption (ArnNotLike or StringNotEquals on aws:PrincipalArn, aws:PrincipalTag or similar) can only be bypassed by detaching the policy from the management account. Some denies, such as leaving the organization, have no exemption by design, so this control reports info rather than alarm."
 
   sql = <<-EOQ
-    with targets as (
-      select id from aws_organizations_root
-      union all
-      select id from aws_organizations_organizational_unit
-      union all
-      select id from aws_organizations_account
-    ),
-    attached_policies as (
-      select distinct
-        pt.arn,
-        pt.name,
-        pt.content,
-        pt.region,
-        pt.account_id
+    with attached_policies as (
+      select
+        arn,
+        name,
+        content,
+        region,
+        account_id
       from
-        targets as t
-        join aws_organizations_policy_target as pt on pt.target_id = t.id and pt.type = 'SERVICE_CONTROL_POLICY'
+        aws_organizations_policy
       where
-        not pt.aws_managed
+        type = 'SERVICE_CONTROL_POLICY'
+        and not aws_managed
+        and jsonb_array_length(targets) > 0
     ),
     statements_without_exemption as (
       select
@@ -945,22 +935,17 @@ query "organizations_account_scp_denies_actions" {
       union all
       select a.id, a.id from aws_organizations_account as a
     ),
-    targets as (
-      select id from aws_organizations_root
-      union all
-      select id from aws_organizations_organizational_unit
-      union all
-      select id from aws_organizations_account
-    ),
     attachments as materialized (
       select
-        t.id as target_id,
-        pt.id,
-        pt.name,
-        pt.content
+        t ->> 'TargetId' as target_id,
+        p.id,
+        p.name,
+        p.content
       from
-        targets as t
-        join aws_organizations_policy_target as pt on pt.target_id = t.id and pt.type = 'SERVICE_CONTROL_POLICY'
+        aws_organizations_policy as p,
+        jsonb_array_elements(p.targets) as t
+      where
+        p.type = 'SERVICE_CONTROL_POLICY'
     ),
     deny_statements as (
       select
@@ -1078,22 +1063,17 @@ query "organizations_account_rcp_denies_with_condition" {
       union all
       select a.id, a.id from aws_organizations_account as a
     ),
-    targets as (
-      select id from aws_organizations_root
-      union all
-      select id from aws_organizations_organizational_unit
-      union all
-      select id from aws_organizations_account
-    ),
     attachments as materialized (
       select
-        t.id as target_id,
-        pt.id,
-        pt.name,
-        pt.content
+        t ->> 'TargetId' as target_id,
+        p.id,
+        p.name,
+        p.content
       from
-        targets as t
-        join aws_organizations_policy_target as pt on pt.target_id = t.id and pt.type = 'RESOURCE_CONTROL_POLICY'
+        aws_organizations_policy as p,
+        jsonb_array_elements(p.targets) as t
+      where
+        p.type = 'RESOURCE_CONTROL_POLICY'
     ),
     matching_statements as (
       select
@@ -1170,7 +1150,16 @@ query "organizations_target_policy_attachments_within_limit" {
         count(pt.id) as attachments
       from
         targets as t
-        left join aws_organizations_policy_target as pt on pt.target_id = t.id and pt.type = $1
+        left join (
+          select
+            p.id,
+            pt ->> 'TargetId' as target_id
+          from
+            aws_organizations_policy as p,
+            jsonb_array_elements(p.targets) as pt
+          where
+            p.type = $1
+        ) as pt on pt.target_id = t.id
       group by
         t.arn
     )

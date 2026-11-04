@@ -15,6 +15,8 @@ mod "aws_perimeter" {
 
   require {
     plugin "aws" {
+      # TODO: raise to the first release that includes turbot/steampipe-plugin-aws#2811 (aws_organizations_policy.targets),
+      # used by the Organization Policy Access benchmark.
       min_version = "0.70.0"
     }
   }
